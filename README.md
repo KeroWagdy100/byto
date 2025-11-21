@@ -1,2 +1,2 @@
 # byto
-A lightweight desktop app for real-time network data usage monitoring
+A lightweight Windows GUI for yt-dlp, simplifying video downloads
