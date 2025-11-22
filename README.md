@@ -1,2 +1,2 @@
 # byto
-A lightweight Windows GUI for yt-dlp, simplifying video downloads
+A lightweight GUI for yt-dlp, simplifying video downloads
