@@ -8,7 +8,7 @@ type YTDLPBuilder struct {
 	args []string
 }
 
-func (y *YTDLPBuilder) NewYTDLPBuilder() *YTDLPBuilder { return &YTDLPBuilder{} }
+func NewYTDLPBuilder() *YTDLPBuilder { return &YTDLPBuilder{} }
 
 // "[byto:title] %(info.title)s [byto:downloaded_bytes] %(progress.downloaded_bytes)d [byto:total_bytes] %(progress.total_bytes)d"
 func (y *YTDLPBuilder) ProgressTemplate(template string) *YTDLPBuilder {

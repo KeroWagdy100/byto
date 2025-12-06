@@ -10,6 +10,9 @@ type Media struct {
 	Status     DownloadStatus   `json:"status"`
 	Progress   DownloadProgress `json:"progress"`
 	mu         sync.Mutex
+	// Callbacks for real-time updates
+	OnProgress     func(id string, progress DownloadProgress) `json:"-"`
+	OnStatusChange func(id string, status DownloadStatus)     `json:"-"`
 }
 
 type DownloadProgress struct {
@@ -30,10 +33,17 @@ func (m *Media) UpdateProgress(downloaded, total int64, percentage int) {
 	m.Progress.DownloadedBytes = downloaded
 	m.TotalBytes = total
 	m.Progress.Percentage = percentage
+
+	if m.OnProgress != nil {
+		go m.OnProgress(m.ID, m.Progress)
+	}
 }
 
 func (m *Media) SetStatus(status DownloadStatus) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.Status = status
+	if m.OnStatusChange != nil {
+		go m.OnStatusChange(m.ID, m.Status)
+	}
 }
