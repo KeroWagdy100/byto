@@ -17,8 +17,9 @@ import (
 const AppVersion = "1.0.0"
 
 const (
-	GitHubOwner = "OmarNaru1110"
-	GitHubRepo  = "byto"
+	GitHubOwner     = "OmarNaru1110"
+	GitHubRepo      = "byto"
+	YtDlpReleaseURL = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
 )
 
 type VersionInfo struct {
@@ -43,8 +44,15 @@ type UpdateResult struct {
 	DownloadURL    string `json:"download_url,omitempty"`
 }
 
+type YtDlpStatus struct {
+	Installed bool   `json:"installed"`
+	Path      string `json:"path"`
+	Version   string `json:"version"`
+}
+
 type Updater struct {
 	httpClient *http.Client
+	ytdlpPath  string
 }
 
 func NewUpdater() *Updater {
@@ -59,8 +67,162 @@ func (u *Updater) GetAppVersion() string {
 	return AppVersion
 }
 
+// returns the path to the yt-dlp executable
+func (u *Updater) GetYtDlpPath() string {
+	if u.ytdlpPath != "" {
+		return u.ytdlpPath
+	}
+
+	execPath, err := os.Executable()
+	if err != nil {
+		execPath = "."
+	}
+	appDir := filepath.Dir(execPath)
+
+	ytdlpName := "yt-dlp"
+	if runtime.GOOS == "windows" {
+		ytdlpName = "yt-dlp.exe"
+	}
+
+	u.ytdlpPath = filepath.Join(appDir, ytdlpName)
+	return u.ytdlpPath
+}
+
+func (u *Updater) CheckYtDlp() YtDlpStatus {
+	bundledPath := u.GetYtDlpPath()
+	if _, err := os.Stat(bundledPath); err == nil {
+		version := u.getYtDlpVersion(bundledPath)
+		return YtDlpStatus{
+			Installed: true,
+			Path:      bundledPath,
+			Version:   version,
+		}
+	}
+
+	// global check
+	globalPath, err := exec.LookPath("yt-dlp")
+	if err == nil {
+		version := u.getYtDlpVersion(globalPath)
+		return YtDlpStatus{
+			Installed: true,
+			Path:      globalPath,
+			Version:   version,
+		}
+	}
+
+	return YtDlpStatus{
+		Installed: false,
+		Path:      "",
+		Version:   "",
+	}
+}
+
+func (u *Updater) getYtDlpVersion(path string) string {
+	cmd := exec.Command(path, "--version")
+	output, err := cmd.Output()
+	if err != nil {
+		return "unknown"
+	}
+	return strings.TrimSpace(string(output))
+}
+
+func (u *Updater) DownloadYtDlp(progressCallback func(downloaded, total int64)) error {
+	resp, err := http.Get(YtDlpReleaseURL)
+	if err != nil {
+		return fmt.Errorf("failed to check yt-dlp releases: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var release struct {
+		TagName string `json:"tag_name"`
+		Assets  []struct {
+			Name               string `json:"name"`
+			BrowserDownloadURL string `json:"browser_download_url"`
+		} `json:"assets"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return fmt.Errorf("failed to parse release info: %w", err)
+	}
+
+	var downloadURL string
+	var assetName string
+
+	switch runtime.GOOS {
+	case "windows":
+		assetName = "yt-dlp.exe"
+	case "darwin":
+		assetName = "yt-dlp_macos"
+	default:
+		assetName = "yt-dlp"
+	}
+
+	for _, asset := range release.Assets {
+		if asset.Name == assetName {
+			downloadURL = asset.BrowserDownloadURL
+			break
+		}
+	}
+
+	if downloadURL == "" {
+		return fmt.Errorf("could not find yt-dlp download for %s", runtime.GOOS)
+	}
+
+	dlResp, err := http.Get(downloadURL)
+	if err != nil {
+		return fmt.Errorf("failed to download yt-dlp: %w", err)
+	}
+	defer dlResp.Body.Close()
+
+	ytdlpPath := u.GetYtDlpPath()
+	out, err := os.Create(ytdlpPath)
+	if err != nil {
+		return fmt.Errorf("failed to create yt-dlp file: %w", err)
+	}
+	defer out.Close()
+
+	total := dlResp.ContentLength
+	var downloaded int64
+
+	buf := make([]byte, 32*1024)
+	for {
+		n, err := dlResp.Body.Read(buf)
+		if n > 0 {
+			out.Write(buf[:n])
+			downloaded += int64(n)
+			if progressCallback != nil {
+				progressCallback(downloaded, total)
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("download interrupted: %w", err)
+		}
+	}
+
+	// Make executable on Unix systems
+	if runtime.GOOS != "windows" {
+		if err := os.Chmod(ytdlpPath, 0755); err != nil {
+			return fmt.Errorf("failed to make yt-dlp executable: %w", err)
+		}
+	}
+
+	return nil
+}
+
 func (u *Updater) UpdateYTDLP() UpdateResult {
-	cmd := exec.Command("yt-dlp", "-U")
+	status := u.CheckYtDlp()
+
+	if !status.Installed {
+		return UpdateResult{
+			Success: false,
+			Message: "yt-dlp is not installed",
+		}
+	}
+
+	cmd := exec.Command(status.Path, "-U")
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {

@@ -10,8 +10,16 @@ export function CheckAppUpdate() {
   return window['go']['main']['App']['CheckAppUpdate']();
 }
 
+export function CheckYtDlp() {
+  return window['go']['main']['App']['CheckYtDlp']();
+}
+
 export function DownloadAppUpdate(arg1) {
   return window['go']['main']['App']['DownloadAppUpdate'](arg1);
+}
+
+export function DownloadYtDlp() {
+  return window['go']['main']['App']['DownloadYtDlp']();
 }
 
 export function GetAppVersion() {
@@ -28,6 +36,10 @@ export function GetQueue() {
 
 export function GetSettings() {
   return window['go']['main']['App']['GetSettings']();
+}
+
+export function GetYtDlpPath() {
+  return window['go']['main']['App']['GetYtDlpPath']();
 }
 
 export function Greet(arg1) {

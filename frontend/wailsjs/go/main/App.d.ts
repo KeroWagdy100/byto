@@ -7,7 +7,11 @@ export function AddToQueue(arg1:string,arg2:string):Promise<string>;
 
 export function CheckAppUpdate():Promise<updater.UpdateResult>;
 
+export function CheckYtDlp():Promise<updater.YtDlpStatus>;
+
 export function DownloadAppUpdate(arg1:string):Promise<string>;
+
+export function DownloadYtDlp():Promise<void>;
 
 export function GetAppVersion():Promise<string>;
 
@@ -16,6 +20,8 @@ export function GetDefaultDownloadPath():Promise<string>;
 export function GetQueue():Promise<Array<domain.Media>>;
 
 export function GetSettings():Promise<domain.Setting>;
+
+export function GetYtDlpPath():Promise<string>;
 
 export function Greet(arg1:string):Promise<string>;
 

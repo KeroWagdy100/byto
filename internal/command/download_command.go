@@ -34,6 +34,7 @@ func (c *DownloadCommand) Execute(args any) error {
 	log.Printf("DownloadCommand: Configured YTDLP builder progress template.")
 
 	ucmd := c.Builder.Build()
+	ytdlpPath := c.Builder.GetYtDlpPath()
 
 	// Use context for cancellation support
 	ctx := media.Ctx
@@ -41,8 +42,8 @@ func (c *DownloadCommand) Execute(args any) error {
 		ctx = context.Background()
 	}
 
-	cmd := exec.CommandContext(ctx, "yt-dlp", ucmd...)
-	log.Printf("DownloadCommand: Executing command: yt-dlp %v", ucmd)
+	cmd := exec.CommandContext(ctx, ytdlpPath, ucmd...)
+	log.Printf("DownloadCommand: Executing command: %s %v", ytdlpPath, ucmd)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {

@@ -373,6 +373,43 @@ func (a *App) UpdateYTDLP() updater.UpdateResult {
 	return result
 }
 
+func (a *App) CheckYtDlp() updater.YtDlpStatus {
+	log.Println("Checking yt-dlp installation...")
+	status := a.updater.CheckYtDlp()
+	log.Printf("yt-dlp status: installed=%v, path=%s, version=%s", status.Installed, status.Path, status.Version)
+	return status
+}
+
+func (a *App) DownloadYtDlp() error {
+	log.Println("Downloading yt-dlp...")
+
+	progressCallback := func(downloaded, total int64) {
+		var percentage float64
+		if total > 0 {
+			percentage = float64(downloaded) / float64(total) * 100
+		}
+		runtime.EventsEmit(a.ctx, "ytdlp_download_progress", map[string]interface{}{
+			"downloaded": downloaded,
+			"total":      total,
+			"percentage": percentage,
+		})
+	}
+
+	err := a.updater.DownloadYtDlp(progressCallback)
+	if err != nil {
+		log.Printf("Failed to download yt-dlp: %v", err)
+		return err
+	}
+
+	log.Println("yt-dlp downloaded successfully")
+	return nil
+}
+
+func (a *App) GetYtDlpPath() string {
+	status := a.updater.CheckYtDlp()
+	return status.Path
+}
+
 func (a *App) CheckAppUpdate() updater.UpdateResult {
 	log.Println("Checking for app updates...")
 	result := a.updater.CheckAppUpdate()

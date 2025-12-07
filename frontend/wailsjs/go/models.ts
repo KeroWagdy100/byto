@@ -103,6 +103,22 @@ export namespace updater {
 	        this.download_url = source["download_url"];
 	    }
 	}
+	export class YtDlpStatus {
+	    installed: boolean;
+	    path: string;
+	    version: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new YtDlpStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.installed = source["installed"];
+	        this.path = source["path"];
+	        this.version = source["version"];
+	    }
+	}
 
 }
 

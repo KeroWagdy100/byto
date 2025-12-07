@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { DownloadItem } from './components/DownloadItem';
 import { SettingsPanel } from './components/SettingsPanel';
 import { SupportPanel } from './components/SupportPanel';
+import { DependencyCheckDialog } from './components/DependencyCheckDialog';
 import { AddToQueue, GetQueue, RemoveFromQueue, StartDownloads, PauseDownloads, StartSingleDownload, PauseSingleDownload, GetSettings, UpdateSettings, SaveSettings, SelectDownloadFolder, GetDefaultDownloadPath, ShowInFolder } from '../wailsjs/go/main/App';
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
 import { domain } from '../wailsjs/go/models';
@@ -90,6 +91,7 @@ export default function App() {
     const [showSettings, setShowSettings] = useState(false);
     const [showSupport, setShowSupport] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [showDependencyCheck, setShowDependencyCheck] = useState(true);
 
     // Load initial data from backend
     useEffect(() => {
@@ -285,6 +287,11 @@ export default function App() {
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
+            {/* Dependency Check Dialog */}
+            {showDependencyCheck && (
+                <DependencyCheckDialog onClose={() => setShowDependencyCheck(false)} />
+            )}
+
             {/* Title Bar */}
             <div className="bg-[#141414] border-b border-[#262626] px-4 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-3">

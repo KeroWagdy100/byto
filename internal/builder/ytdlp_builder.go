@@ -2,14 +2,49 @@ package builder
 
 import (
 	"byto/internal/domain"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 )
 
 type YTDLPBuilder struct {
-	args []string
+	args      []string
+	ytdlpPath string
 }
 
-func NewYTDLPBuilder() *YTDLPBuilder { return &YTDLPBuilder{} }
+func NewYTDLPBuilder() *YTDLPBuilder {
+	return &YTDLPBuilder{
+		ytdlpPath: findYtDlpPath(),
+	}
+}
+
+func findYtDlpPath() string {
+	execPath, err := os.Executable()
+	if err == nil {
+		appDir := filepath.Dir(execPath)
+		ytdlpName := "yt-dlp"
+		if runtime.GOOS == "windows" {
+			ytdlpName = "yt-dlp.exe"
+		}
+		bundledPath := filepath.Join(appDir, ytdlpName)
+		if _, err := os.Stat(bundledPath); err == nil {
+			return bundledPath
+		}
+	}
+
+	globalPath, err := exec.LookPath("yt-dlp")
+	if err == nil {
+		return globalPath
+	}
+
+	return "yt-dlp"
+}
+
+// GetYtDlpPath returns the path to yt-dlp executable
+func (y *YTDLPBuilder) GetYtDlpPath() string {
+	return y.ytdlpPath
+}
 
 // "[byto:title] %(info.title)s [byto:downloaded_bytes] %(progress.downloaded_bytes)d [byto:total_bytes] %(progress.total_bytes)d"
 func (y *YTDLPBuilder) ProgressTemplate(template string) *YTDLPBuilder {
