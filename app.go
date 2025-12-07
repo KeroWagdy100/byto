@@ -65,8 +65,16 @@ func (a *App) UpdateSettings(quality string, parallelDownloads int, downloadPath
 }
 
 func (a *App) SelectDownloadFolder() string {
+	return a.SelectDownloadFolderWithDefault("")
+}
+
+func (a *App) SelectDownloadFolderWithDefault(defaultPath string) string {
+	if defaultPath == "" {
+		defaultPath = a.settings.DownloadPath
+	}
 	path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Select Download Folder",
+		Title:            "Select Download Folder",
+		DefaultDirectory: defaultPath,
 	})
 	if err != nil {
 		log.Printf("Error selecting folder: %v", err)
@@ -104,17 +112,26 @@ func (a *App) ShowInFolder(filePath string) {
 }
 
 func (a *App) GetDefaultDownloadPath() string {
+	if a.settings != nil {
+		return a.settings.DownloadPath
+	}
 	return "./downloads"
 }
 
-func (a *App) AddToQueue(url string) string {
+func (a *App) AddToQueue(url string, customPath string) string {
 	id := uuid.New().String()
 	log.Printf("Adding to queue: %s with id: %s", url, id)
+
+	filePath := a.settings.DownloadPath
+	if customPath != "" {
+		filePath = customPath
+	}
+
 	a.queue.Add(&domain.Media{
 		ID:       id,
 		URL:      url,
 		Title:    "Detecting...",
-		FilePath: a.settings.DownloadPath,
+		FilePath: filePath,
 		Status:   domain.Pending,
 		Progress: domain.DownloadProgress{
 			Percentage:      0,

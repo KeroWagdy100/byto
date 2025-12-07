@@ -11,7 +11,7 @@ type Setting struct {
 func NewSetting() *Setting {
 	s := &Setting{}
 
-	s.ParallelDownloads = 3
+	s.ParallelDownloads = 1
 	s.Quality = Quality1080p
 
 	home, err := os.UserHomeDir()

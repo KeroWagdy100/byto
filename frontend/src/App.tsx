@@ -192,24 +192,31 @@ export default function App() {
     }, [quality, parallelDownloads, downloadPath, isLoading]);
 
     const handleAddUrl = async () => {
-        if (urlInput.trim()) {
-            try {
-                const id = await AddToQueue(urlInput.trim());
-                const newDownload: DownloadVideo = {
-                    id,
-                    url: urlInput,
-                    fileName: 'Detecting...',
-                    filePath: downloadPath,
-                    progress: 0,
-                    fileSize: '--',
-                    status: 'pending',
-                    logs: []
-                };
-                setDownloads([...downloads, newDownload]);
-                setUrlInput('');
-            } catch (error) {
-                console.error('Error adding URL to queue:', error);
+        if (!urlInput.trim()) return;
+        
+        try {
+            // Open folder picker with default path pre-selected
+            const selectedPath = await SelectDownloadFolder();
+            if (!selectedPath) {
+                // User cancelled folder selection
+                return;
             }
+            
+            const id = await AddToQueue(urlInput.trim(), selectedPath);
+            const newDownload: DownloadVideo = {
+                id,
+                url: urlInput,
+                fileName: 'Detecting...',
+                filePath: selectedPath,
+                progress: 0,
+                fileSize: '--',
+                status: 'pending',
+                logs: []
+            };
+            setDownloads([...downloads, newDownload]);
+            setUrlInput('');
+        } catch (error) {
+            console.error('Error adding URL to queue:', error);
         }
     };
 
