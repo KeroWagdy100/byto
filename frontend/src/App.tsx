@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { DownloadItem } from './components/DownloadItem';
 import { SettingsPanel } from './components/SettingsPanel';
 import { SupportPanel } from './components/SupportPanel';
-import { AddToQueue, GetQueue, RemoveFromQueue, StartDownloads, PauseDownloads, GetSettings, UpdateSettings, SelectDownloadFolder, GetDefaultDownloadPath, ShowInFolder } from '../wailsjs/go/main/App';
+import { AddToQueue, GetQueue, RemoveFromQueue, StartDownloads, PauseDownloads, StartSingleDownload, PauseSingleDownload, GetSettings, UpdateSettings, SelectDownloadFolder, GetDefaultDownloadPath, ShowInFolder } from '../wailsjs/go/main/App';
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
 import { domain } from '../wailsjs/go/models';
 import bytoLogo from 'figma:asset/e1c6c4d1df3cefc4435d7cc603c42e22f058f10f.png';
@@ -233,15 +233,18 @@ export default function App() {
         }
     };
 
-    const handleDownloadAction = (id: string, action: 'start' | 'pause' | 'resume' | 'delete') => {
-        // Individual item actions - status updates will come from backend events
-        setDownloads(downloads.map(d => {
-            if (d.id === id) {
-                if (action === 'start' || action === 'resume') return { ...d, status: 'downloading' };
-                if (action === 'pause') return { ...d, status: 'paused' };
+    const handleDownloadAction = async (id: string, action: 'start' | 'pause' | 'resume' | 'delete') => {
+        try {
+            if (action === 'start' || action === 'resume') {
+                await StartSingleDownload(id);
+                // Status updates will come from backend events
+            } else if (action === 'pause') {
+                await PauseSingleDownload(id);
+                // Status updates will come from backend events
             }
-            return d;
-        }));
+        } catch (error) {
+            console.error(`Error performing ${action} on download:`, error);
+        }
     };
 
     const handleRemoveDownload = async (id: string) => {

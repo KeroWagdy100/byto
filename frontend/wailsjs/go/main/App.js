@@ -26,6 +26,10 @@ export function PauseDownloads() {
   return window['go']['main']['App']['PauseDownloads']();
 }
 
+export function PauseSingleDownload(arg1) {
+  return window['go']['main']['App']['PauseSingleDownload'](arg1);
+}
+
 export function RemoveFromQueue(arg1) {
   return window['go']['main']['App']['RemoveFromQueue'](arg1);
 }
@@ -40,6 +44,10 @@ export function ShowInFolder(arg1) {
 
 export function StartDownloads() {
   return window['go']['main']['App']['StartDownloads']();
+}
+
+export function StartSingleDownload(arg1) {
+  return window['go']['main']['App']['StartSingleDownload'](arg1);
 }
 
 export function UpdateSettings(arg1, arg2, arg3) {

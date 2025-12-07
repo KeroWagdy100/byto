@@ -247,3 +247,92 @@ func (a *App) PauseDownloads() {
 		}
 	}
 }
+
+func (a *App) StartSingleDownload(id string) {
+	log.Printf("Starting single download: %s", id)
+	media, err := a.queue.Get(id)
+	if err != nil {
+		log.Printf("Error getting media from queue: %v", err)
+		return
+	}
+
+	if media.Status != domain.Pending && media.Status != domain.Failed && media.Status != domain.Paused {
+		log.Printf("Media %s is not in a startable state (status: %d)", id, media.Status)
+		return
+	}
+
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	media.Ctx = ctx
+	media.CancelFunc = cancelFunc
+
+	media.OnProgress = func(id string, progress domain.DownloadProgress) {
+		currentMedia, err := a.queue.Get(id)
+		title := "Detecting..."
+		totalBytes := int64(0)
+		if err == nil && currentMedia != nil {
+			title = currentMedia.Title
+			totalBytes = currentMedia.TotalBytes
+		}
+		runtime.EventsEmit(a.ctx, "download_progress", map[string]interface{}{
+			"id":          id,
+			"title":       title,
+			"total_bytes": totalBytes,
+			"progress":    progress,
+		})
+	}
+
+	media.OnStatusChange = func(id string, status domain.DownloadStatus) {
+		runtime.EventsEmit(a.ctx, "download_status", map[string]interface{}{
+			"id":     id,
+			"status": status,
+		})
+	}
+
+	media.OnTitleChange = func(id string, title string) {
+		runtime.EventsEmit(a.ctx, "download_title", map[string]interface{}{
+			"id":    id,
+			"title": title,
+		})
+	}
+
+	go func() {
+		media.SetStatus(domain.InProgress)
+		log.Printf("Processing item: %s", media.URL)
+
+		b := builder.NewYTDLPBuilder().
+			URL(media.URL).
+			Quality(a.settings.Quality).
+			DownloadPath(media.FilePath).
+			SafeFilenames()
+
+		cmd := &command.DownloadCommand{
+			Builder: b,
+		}
+
+		if err := cmd.Execute(media); err != nil {
+			if err == context.Canceled {
+				media.SetStatus(domain.Paused)
+				log.Printf("Download paused for %s", media.URL)
+			} else {
+				media.SetStatus(domain.Failed)
+				log.Printf("Download failed for %s: %v", media.URL, err)
+				media.AppendLog(fmt.Sprintf("Download failed: %v", err))
+			}
+		} else {
+			log.Printf("Download completed: %s", media.URL)
+		}
+	}()
+}
+
+func (a *App) PauseSingleDownload(id string) {
+	log.Printf("Pausing single download: %s", id)
+	media, err := a.queue.Get(id)
+	if err != nil {
+		log.Printf("Error getting media from queue: %v", err)
+		return
+	}
+
+	if media.Status == domain.InProgress {
+		media.Cancel()
+	}
+}

@@ -14,6 +14,8 @@ export function Greet(arg1:string):Promise<string>;
 
 export function PauseDownloads():Promise<void>;
 
+export function PauseSingleDownload(arg1:string):Promise<void>;
+
 export function RemoveFromQueue(arg1:string):Promise<void>;
 
 export function SelectDownloadFolder():Promise<string>;
@@ -21,5 +23,7 @@ export function SelectDownloadFolder():Promise<string>;
 export function ShowInFolder(arg1:string):Promise<void>;
 
 export function StartDownloads():Promise<void>;
+
+export function StartSingleDownload(arg1:string):Promise<void>;
 
 export function UpdateSettings(arg1:string,arg2:number,arg3:string):Promise<void>;
