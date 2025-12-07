@@ -77,3 +77,32 @@ export namespace domain {
 
 }
 
+export namespace updater {
+	
+	export class UpdateResult {
+	    success: boolean;
+	    message: string;
+	    current_version?: string;
+	    latest_version?: string;
+	    has_update?: boolean;
+	    changelog?: string;
+	    download_url?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateResult(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.success = source["success"];
+	        this.message = source["message"];
+	        this.current_version = source["current_version"];
+	        this.latest_version = source["latest_version"];
+	        this.has_update = source["has_update"];
+	        this.changelog = source["changelog"];
+	        this.download_url = source["download_url"];
+	    }
+	}
+
+}
+

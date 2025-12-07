@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { X, FolderOpen } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FolderOpen, RefreshCw, Download, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from './ui/dialog';
-import { SelectDownloadFolder } from '../../wailsjs/go/main/App';
+import { SelectDownloadFolder, GetAppVersion, PerformFullUpdate, DownloadAppUpdate, LaunchInstaller } from '../../wailsjs/go/main/App';
+import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime';
 
 interface SettingsPanelProps {
   downloadPath: string;
@@ -10,6 +11,25 @@ interface SettingsPanelProps {
   parallelDownloads: string;
   onClose: () => void;
   onSave: (settings: { downloadPath: string; quality: string; parallelDownloads: string }) => void;
+}
+
+type UpdateStatus = 'idle' | 'checking' | 'ytdlp-updating' | 'app-checking' | 'update-available' | 'downloading' | 'ready-to-install' | 'done' | 'error';
+
+interface UpdateState {
+  status: UpdateStatus;
+  message: string;
+  ytdlpResult?: { success: boolean; message: string };
+  appResult?: {
+    success: boolean;
+    message: string;
+    current_version: string;
+    latest_version: string;
+    has_update: boolean;
+    changelog: string;
+    download_url: string;
+  };
+  downloadProgress?: number;
+  installerPath?: string;
 }
 
 export function SettingsPanel({
@@ -23,6 +43,43 @@ export function SettingsPanel({
   const [localDownloadPath, setLocalDownloadPath] = useState(initialDownloadPath);
   const [localQuality, setLocalQuality] = useState(initialQuality);
   const [localParallelDownloads, setLocalParallelDownloads] = useState(initialParallelDownloads);
+  
+  // Update state
+  const [appVersion, setAppVersion] = useState('');
+  const [updateState, setUpdateState] = useState<UpdateState>({
+    status: 'idle',
+    message: ''
+  });
+
+  // Load app version on mount
+  useEffect(() => {
+    GetAppVersion().then(setAppVersion).catch(console.error);
+  }, []);
+
+  // Listen for update events
+  useEffect(() => {
+    const unsubStatus = EventsOn('update_status', (data: { step: string; message: string }) => {
+      if (data.step === 'ytdlp') {
+        setUpdateState(prev => ({ ...prev, status: 'ytdlp-updating', message: data.message }));
+      } else if (data.step === 'app_check') {
+        setUpdateState(prev => ({ ...prev, status: 'app-checking', message: data.message }));
+      }
+    });
+
+    const unsubProgress = EventsOn('update_download_progress', (data: { downloaded: number; total: number; percentage: number }) => {
+      setUpdateState(prev => ({
+        ...prev,
+        status: 'downloading',
+        message: `Downloading update... ${data.percentage.toFixed(1)}%`,
+        downloadProgress: data.percentage
+      }));
+    });
+
+    return () => {
+      EventsOff('update_status');
+      EventsOff('update_download_progress');
+    };
+  }, []);
 
   const handleSelectFolder = async () => {
     try {
@@ -43,6 +100,107 @@ export function SettingsPanel({
     });
   };
 
+  const handleCheckForUpdates = async () => {
+    setUpdateState({ status: 'checking', message: 'Starting update check...' });
+    
+    try {
+      const result = await PerformFullUpdate();
+      
+      const ytdlpResult = result.ytdlp as { success: boolean; message: string };
+      const appResult = result.app as {
+        success: boolean;
+        message: string;
+        current_version: string;
+        latest_version: string;
+        has_update: boolean;
+        changelog: string;
+        download_url: string;
+      };
+
+      if (appResult.has_update) {
+        setUpdateState({
+          status: 'update-available',
+          message: `New version available: ${appResult.latest_version}`,
+          ytdlpResult,
+          appResult
+        });
+      } else {
+        setUpdateState({
+          status: 'done',
+          message: 'Everything is up to date!',
+          ytdlpResult,
+          appResult
+        });
+      }
+    } catch (error) {
+      setUpdateState({
+        status: 'error',
+        message: `Update check failed: ${error}`
+      });
+    }
+  };
+
+  const handleDownloadUpdate = async () => {
+    if (!updateState.appResult?.download_url) return;
+
+    setUpdateState(prev => ({
+      ...prev,
+      status: 'downloading',
+      message: 'Starting download...',
+      downloadProgress: 0
+    }));
+
+    try {
+      const installerPath = await DownloadAppUpdate(updateState.appResult.download_url);
+      setUpdateState(prev => ({
+        ...prev,
+        status: 'ready-to-install',
+        message: 'Download complete! Ready to install.',
+        installerPath
+      }));
+    } catch (error) {
+      setUpdateState(prev => ({
+        ...prev,
+        status: 'error',
+        message: `Download failed: ${error}`
+      }));
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    if (!updateState.installerPath) return;
+
+    try {
+      await LaunchInstaller(updateState.installerPath);
+      // The app will close after launching the installer
+    } catch (error) {
+      setUpdateState(prev => ({
+        ...prev,
+        status: 'error',
+        message: `Failed to launch installer: ${error}`
+      }));
+    }
+  };
+
+  const getStatusIcon = () => {
+    switch (updateState.status) {
+      case 'checking':
+      case 'ytdlp-updating':
+      case 'app-checking':
+      case 'downloading':
+        return <Loader2 className="size-4 animate-spin text-blue-400" />;
+      case 'done':
+        return <CheckCircle className="size-4 text-green-400" />;
+      case 'update-available':
+      case 'ready-to-install':
+        return <Download className="size-4 text-yellow-400" />;
+      case 'error':
+        return <AlertCircle className="size-4 text-red-400" />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl bg-[#141414] border border-[#262626] text-gray-100">
@@ -54,6 +212,95 @@ export function SettingsPanel({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Updates Section */}
+          <div className="p-4 bg-[#1a1a1a] rounded-lg border border-[#262626]">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <label className="text-gray-300 text-sm font-medium">Updates</label>
+                <p className="text-gray-500 text-xs">Current version: {appVersion || 'Loading...'}</p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-[#262626] hover:bg-[#1f1f1f]"
+                onClick={handleCheckForUpdates}
+                disabled={['checking', 'ytdlp-updating', 'app-checking', 'downloading'].includes(updateState.status)}
+              >
+                <RefreshCw className={`size-4 mr-2 ${['checking', 'ytdlp-updating', 'app-checking'].includes(updateState.status) ? 'animate-spin' : ''}`} />
+                Check for Updates
+              </Button>
+            </div>
+
+            {/* Update Status */}
+            {updateState.status !== 'idle' && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-sm">
+                  {getStatusIcon()}
+                  <span className={
+                    updateState.status === 'error' ? 'text-red-400' :
+                    updateState.status === 'done' ? 'text-green-400' :
+                    updateState.status === 'update-available' ? 'text-yellow-400' :
+                    'text-gray-300'
+                  }>
+                    {updateState.message}
+                  </span>
+                </div>
+
+                {/* yt-dlp result */}
+                {updateState.ytdlpResult && (
+                  <div className="text-xs text-gray-400 pl-6">
+                    <span className={updateState.ytdlpResult.success ? 'text-green-400' : 'text-red-400'}>
+                      yt-dlp: {updateState.ytdlpResult.message}
+                    </span>
+                  </div>
+                )}
+
+                {/* Download progress bar */}
+                {updateState.status === 'downloading' && updateState.downloadProgress !== undefined && (
+                  <div className="w-full bg-[#262626] rounded-full h-2">
+                    <div
+                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${updateState.downloadProgress}%` }}
+                    />
+                  </div>
+                )}
+
+                {/* Changelog */}
+                {updateState.appResult?.has_update && updateState.appResult.changelog && (
+                  <div className="mt-2 p-3 bg-[#0d0d0d] rounded border border-[#333]">
+                    <p className="text-xs text-gray-400 mb-1">What's new in v{updateState.appResult.latest_version}:</p>
+                    <pre className="text-xs text-gray-300 whitespace-pre-wrap font-sans">
+                      {updateState.appResult.changelog}
+                    </pre>
+                  </div>
+                )}
+
+                {/* Action buttons */}
+                {updateState.status === 'update-available' && (
+                  <Button
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                    onClick={handleDownloadUpdate}
+                  >
+                    <Download className="size-4 mr-2" />
+                    Download Update
+                  </Button>
+                )}
+
+                {updateState.status === 'ready-to-install' && (
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700"
+                    onClick={handleInstallUpdate}
+                  >
+                    <RefreshCw className="size-4 mr-2" />
+                    Install & Restart
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="text-gray-300 text-sm">Default Download Path</label>
             <p className="text-gray-500 text-xs mb-2">Where files will be saved</p>

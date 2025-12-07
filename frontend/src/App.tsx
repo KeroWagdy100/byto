@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Settings, Download, FolderOpen, Plus, Play, Pause, RefreshCw, Heart } from 'lucide-react';
+import { Settings, Download, FolderOpen, Plus, Play, Pause, Heart } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './components/ui/select';
@@ -309,10 +309,6 @@ export default function App() {
                     >
                         <Settings className="size-4" />
                         Settings
-                    </Button>
-                    <Button variant="outline" size="sm" className="border-[#262626] hover:bg-[#1f1f1f]">
-                        <RefreshCw className="size-4" />
-                        Update
                     </Button>
                 </div>
             </div>

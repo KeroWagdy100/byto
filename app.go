@@ -5,6 +5,7 @@ import (
 	"byto/internal/command"
 	"byto/internal/domain"
 	"byto/internal/queue"
+	"byto/internal/updater"
 	"context"
 	"fmt"
 	"log"
@@ -20,12 +21,14 @@ type App struct {
 	ctx      context.Context
 	queue    *queue.Queue
 	settings *domain.Setting
+	updater  *updater.Updater
 }
 
 func NewApp() *App {
 	return &App{
 		queue:    queue.NewQueue(),
 		settings: domain.NewSetting(),
+		updater:  updater.NewUpdater(),
 	}
 }
 
@@ -356,5 +359,93 @@ func (a *App) PauseSingleDownload(id string) {
 
 	if media.Status == domain.InProgress {
 		media.Cancel()
+	}
+}
+
+func (a *App) GetAppVersion() string {
+	return a.updater.GetAppVersion()
+}
+
+func (a *App) UpdateYTDLP() updater.UpdateResult {
+	log.Println("Updating yt-dlp...")
+	result := a.updater.UpdateYTDLP()
+	log.Printf("yt-dlp update result: %s", result.Message)
+	return result
+}
+
+func (a *App) CheckAppUpdate() updater.UpdateResult {
+	log.Println("Checking for app updates...")
+	result := a.updater.CheckAppUpdate()
+	if result.Success {
+		log.Printf("App update check: current=%s, latest=%s, hasUpdate=%v",
+			result.CurrentVersion, result.LatestVersion, result.HasUpdate)
+	} else {
+		log.Printf("App update check failed: %s", result.Message)
+	}
+	return result
+}
+
+func (a *App) DownloadAppUpdate(downloadURL string) (string, error) {
+	log.Printf("Downloading app update from: %s", downloadURL)
+
+	// Emit progress events
+	progressCallback := func(downloaded, total int64) {
+		var percentage float64
+		if total > 0 {
+			percentage = float64(downloaded) / float64(total) * 100
+		}
+		runtime.EventsEmit(a.ctx, "update_download_progress", map[string]interface{}{
+			"downloaded": downloaded,
+			"total":      total,
+			"percentage": percentage,
+		})
+	}
+
+	installerPath, err := a.updater.DownloadAppUpdate(downloadURL, progressCallback)
+	if err != nil {
+		log.Printf("Failed to download update: %v", err)
+		return "", err
+	}
+
+	log.Printf("Update downloaded to: %s", installerPath)
+	return installerPath, nil
+}
+
+func (a *App) LaunchInstaller(installerPath string) error {
+	log.Printf("Launching installer: %s", installerPath)
+	return a.updater.LaunchInstaller(installerPath)
+}
+
+func (a *App) PerformFullUpdate() map[string]interface{} {
+	log.Println("Performing full update check...")
+
+	// Step 1: Update yt-dlp
+	runtime.EventsEmit(a.ctx, "update_status", map[string]interface{}{
+		"step":    "ytdlp",
+		"message": "Updating yt-dlp...",
+	})
+	ytdlpResult := a.updater.UpdateYTDLP()
+
+	// Step 2: Check for app updates
+	runtime.EventsEmit(a.ctx, "update_status", map[string]interface{}{
+		"step":    "app_check",
+		"message": "Checking for app updates...",
+	})
+	appResult := a.updater.CheckAppUpdate()
+
+	return map[string]interface{}{
+		"ytdlp": map[string]interface{}{
+			"success": ytdlpResult.Success,
+			"message": ytdlpResult.Message,
+		},
+		"app": map[string]interface{}{
+			"success":         appResult.Success,
+			"message":         appResult.Message,
+			"current_version": appResult.CurrentVersion,
+			"latest_version":  appResult.LatestVersion,
+			"has_update":      appResult.HasUpdate,
+			"changelog":       appResult.Changelog,
+			"download_url":    appResult.DownloadURL,
+		},
 	}
 }

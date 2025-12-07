@@ -6,6 +6,18 @@ export function AddToQueue(arg1, arg2) {
   return window['go']['main']['App']['AddToQueue'](arg1, arg2);
 }
 
+export function CheckAppUpdate() {
+  return window['go']['main']['App']['CheckAppUpdate']();
+}
+
+export function DownloadAppUpdate(arg1) {
+  return window['go']['main']['App']['DownloadAppUpdate'](arg1);
+}
+
+export function GetAppVersion() {
+  return window['go']['main']['App']['GetAppVersion']();
+}
+
 export function GetDefaultDownloadPath() {
   return window['go']['main']['App']['GetDefaultDownloadPath']();
 }
@@ -22,12 +34,20 @@ export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
+export function LaunchInstaller(arg1) {
+  return window['go']['main']['App']['LaunchInstaller'](arg1);
+}
+
 export function PauseDownloads() {
   return window['go']['main']['App']['PauseDownloads']();
 }
 
 export function PauseSingleDownload(arg1) {
   return window['go']['main']['App']['PauseSingleDownload'](arg1);
+}
+
+export function PerformFullUpdate() {
+  return window['go']['main']['App']['PerformFullUpdate']();
 }
 
 export function RemoveFromQueue(arg1) {
@@ -60,4 +80,8 @@ export function StartSingleDownload(arg1) {
 
 export function UpdateSettings(arg1, arg2, arg3) {
   return window['go']['main']['App']['UpdateSettings'](arg1, arg2, arg3);
+}
+
+export function UpdateYTDLP() {
+  return window['go']['main']['App']['UpdateYTDLP']();
 }
