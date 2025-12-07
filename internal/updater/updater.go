@@ -56,9 +56,18 @@ type Updater struct {
 }
 
 func NewUpdater() *Updater {
+	// Create a transport with optimized settings for downloads
+	transport := &http.Transport{
+		MaxIdleConns:        10,
+		IdleConnTimeout:     30 * time.Second,
+		DisableCompression:  true, // Faster for binary downloads
+		MaxIdleConnsPerHost: 5,
+	}
+
 	return &Updater{
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout:   5 * time.Minute, // Longer timeout for large downloads
+			Transport: transport,
 		},
 	}
 }
@@ -119,6 +128,7 @@ func (u *Updater) CheckYtDlp() YtDlpStatus {
 
 func (u *Updater) getYtDlpVersion(path string) string {
 	cmd := exec.Command(path, "--version")
+	hideWindow(cmd)
 	output, err := cmd.Output()
 	if err != nil {
 		return "unknown"
@@ -127,7 +137,7 @@ func (u *Updater) getYtDlpVersion(path string) string {
 }
 
 func (u *Updater) DownloadYtDlp(progressCallback func(downloaded, total int64)) error {
-	resp, err := http.Get(YtDlpReleaseURL)
+	resp, err := u.httpClient.Get(YtDlpReleaseURL)
 	if err != nil {
 		return fmt.Errorf("failed to check yt-dlp releases: %w", err)
 	}
@@ -168,7 +178,7 @@ func (u *Updater) DownloadYtDlp(progressCallback func(downloaded, total int64)) 
 		return fmt.Errorf("could not find yt-dlp download for %s", runtime.GOOS)
 	}
 
-	dlResp, err := http.Get(downloadURL)
+	dlResp, err := u.httpClient.Get(downloadURL)
 	if err != nil {
 		return fmt.Errorf("failed to download yt-dlp: %w", err)
 	}
@@ -184,7 +194,8 @@ func (u *Updater) DownloadYtDlp(progressCallback func(downloaded, total int64)) 
 	total := dlResp.ContentLength
 	var downloaded int64
 
-	buf := make([]byte, 32*1024)
+	// Use larger buffer for faster downloads (256KB)
+	buf := make([]byte, 256*1024)
 	for {
 		n, err := dlResp.Body.Read(buf)
 		if n > 0 {
@@ -223,6 +234,7 @@ func (u *Updater) UpdateYTDLP() UpdateResult {
 	}
 
 	cmd := exec.Command(status.Path, "-U")
+	hideWindow(cmd)
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
@@ -358,7 +370,8 @@ func (u *Updater) DownloadAppUpdate(downloadURL string, progressCallback func(do
 	totalSize := resp.ContentLength
 	var downloaded int64
 
-	buf := make([]byte, 32*1024) // 32KB buffer
+	// Use larger buffer for faster downloads (256KB)
+	buf := make([]byte, 256*1024)
 	for {
 		n, err := resp.Body.Read(buf)
 		if n > 0 {

@@ -43,6 +43,7 @@ func (c *DownloadCommand) Execute(args any) error {
 	}
 
 	cmd := exec.CommandContext(ctx, ytdlpPath, ucmd...)
+	HideWindow(cmd) // Hide console window on Windows
 	log.Printf("DownloadCommand: Executing command: %s %v", ytdlpPath, ucmd)
 
 	stdout, err := cmd.StdoutPipe()
