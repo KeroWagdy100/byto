@@ -28,7 +28,7 @@ jobs:
             platform: 'windows/amd64'
             os: 'windows-latest'
             artifact-name: 'byto-windows-amd64-installer'
-            artifact-path: 'build/bin/'
+            artifact-path: 'build/bin/byto-amd64-installer.exe'
             nsis: true
           - name: 'byto'
             platform: 'darwin/universal'
