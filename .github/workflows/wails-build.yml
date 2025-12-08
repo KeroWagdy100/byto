@@ -17,15 +17,15 @@ jobs:
       fail-fast: false
       matrix:
         build:
-          - name: 'byto'
+          - name: 'byto-linux'
             platform:  'linux/amd64'
             os: 'ubuntu-latest'
             artifact-name: 'byto-linux'
-          - name: 'byto.exe'
+          - name: 'byto-windows.exe'
             platform:  'windows/amd64'
             os: 'windows-latest'
             artifact-name: 'byto-windows'
-          - name: 'byto'
+          - name: 'byto-macos'
             platform:  'darwin/universal'
             os: 'macos-latest'
             artifact-name: 'byto-macos'
