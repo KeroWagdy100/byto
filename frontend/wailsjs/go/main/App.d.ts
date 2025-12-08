@@ -7,9 +7,13 @@ export function AddToQueue(arg1:string,arg2:string):Promise<string>;
 
 export function CheckAppUpdate():Promise<updater.UpdateResult>;
 
+export function CheckFfmpeg():Promise<updater.FfmpegStatus>;
+
 export function CheckYtDlp():Promise<updater.YtDlpStatus>;
 
 export function DownloadAppUpdate(arg1:string):Promise<string>;
+
+export function DownloadFfmpeg():Promise<void>;
 
 export function DownloadYtDlp():Promise<void>;
 

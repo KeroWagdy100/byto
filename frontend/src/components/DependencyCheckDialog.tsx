@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, XCircle, Loader2, Download } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
 import { Button } from './ui/button';
-import { CheckYtDlp, DownloadYtDlp } from '../../wailsjs/go/main/App';
+import { CheckYtDlp, DownloadYtDlp, CheckFfmpeg, DownloadFfmpeg } from '../../wailsjs/go/main/App';
 import { EventsOn, EventsOff } from '../../wailsjs/runtime/runtime';
 
 interface Dependency {
@@ -18,7 +18,8 @@ interface DependencyCheckDialogProps {
 
 export function DependencyCheckDialog({ onClose }: DependencyCheckDialogProps) {
   const [dependencies, setDependencies] = useState<Dependency[]>([
-    { name: 'yt-dlp', status: 'checking' }
+    { name: 'yt-dlp', status: 'checking' },
+    { name: 'ffmpeg', status: 'checking' }
   ]);
 
   useEffect(() => {
@@ -26,61 +27,98 @@ export function DependencyCheckDialog({ onClose }: DependencyCheckDialogProps) {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = EventsOn('ytdlp_download_progress', (data: { downloaded: number; total: number; percentage: number }) => {
+    const unsubYtDlp = EventsOn('ytdlp_download_progress', (data: { downloaded: number; total: number; percentage: number }) => {
       setDependencies(prev => prev.map(dep =>
         dep.name === 'yt-dlp' ? { ...dep, progress: Math.round(data.percentage) } : dep
       ));
     });
-
+    const unsubFfmpeg = EventsOn('ffmpeg_download_progress', (data: { downloaded: number; total: number; percentage: number }) => {
+      setDependencies(prev => prev.map(dep =>
+        dep.name === 'ffmpeg' ? { ...dep, progress: Math.round(data.percentage) } : dep
+      ));
+    });
     return () => {
       EventsOff('ytdlp_download_progress');
+      EventsOff('ffmpeg_download_progress');
     };
   }, []);
 
   const checkDependencies = async () => {
+    let ytDlpInstalled = false;
+    let ffmpegInstalled = false;
+    // yt-dlp
     try {
       const result = await CheckYtDlp();
-      if (result.installed) {
-        setDependencies(prev => prev.map(dep =>
-          dep.name === 'yt-dlp' ? { ...dep, status: 'found', version: result.version } : dep
-        ));
-        // Auto-close after a brief delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        onClose();
-      } else {
-        setDependencies(prev => prev.map(dep =>
-          dep.name === 'yt-dlp' ? { ...dep, status: 'missing' } : dep
-        ));
-      }
+      ytDlpInstalled = !!result.installed;
+      setDependencies(prev => prev.map(dep =>
+        dep.name === 'yt-dlp'
+          ? ytDlpInstalled
+            ? { ...dep, status: 'found', version: result.version }
+            : { ...dep, status: 'missing' }
+          : dep
+      ));
     } catch (err) {
       console.error('Failed to check yt-dlp:', err);
       setDependencies(prev => prev.map(dep =>
         dep.name === 'yt-dlp' ? { ...dep, status: 'missing' } : dep
       ));
     }
+    // ffmpeg
+    try {
+      const result = await CheckFfmpeg();
+      ffmpegInstalled = !!result.installed;
+      setDependencies(prev => prev.map(dep =>
+        dep.name === 'ffmpeg'
+          ? ffmpegInstalled
+            ? { ...dep, status: 'found', version: result.version }
+            : { ...dep, status: 'missing' }
+          : dep
+      ));
+    } catch (err) {
+      console.error('Failed to check ffmpeg:', err);
+      setDependencies(prev => prev.map(dep =>
+        dep.name === 'ffmpeg' ? { ...dep, status: 'missing' } : dep
+      ));
+    }
+    // If both are installed, close the dialog after a short delay
+    if (ytDlpInstalled && ffmpegInstalled) {
+      setTimeout(() => onClose(), 500);
+    }
   };
 
   const handleDownload = async (depName: string) => {
-    if (depName !== 'yt-dlp') return;
-
     setDependencies(prev => prev.map(dep =>
       dep.name === depName ? { ...dep, status: 'downloading', progress: 0 } : dep
     ));
 
     try {
-      await DownloadYtDlp();
-      const result = await CheckYtDlp();
-      if (result.installed) {
-        setDependencies(prev => prev.map(dep =>
-          dep.name === depName ? { ...dep, status: 'found', version: result.version } : dep
-        ));
-        await new Promise(resolve => setTimeout(resolve, 500));
-        onClose();
-      } else {
-        throw new Error('Download completed but yt-dlp not found');
+      if (depName === 'yt-dlp') {
+        await DownloadYtDlp();
+        const result = await CheckYtDlp();
+        if (result.installed) {
+          setDependencies(prev => prev.map(dep =>
+            dep.name === depName ? { ...dep, status: 'found', version: result.version } : dep
+          ));
+        } else {
+          throw new Error('Download completed but yt-dlp not found');
+        }
+      } else if (depName === 'ffmpeg') {
+        await DownloadFfmpeg();
+        const result = await CheckFfmpeg();
+        if (result.installed) {
+          setDependencies(prev => prev.map(dep =>
+            dep.name === depName ? { ...dep, status: 'found', version: result.version } : dep
+          ));
+        } else {
+          throw new Error('Download completed but ffmpeg not found');
+        }
       }
+      await new Promise(resolve => setTimeout(resolve, 500));
+      // Only close if all dependencies are found
+      const allFound = dependencies.every(dep => dep.status === 'found' || (dep.name === depName && true));
+      if (allFound) onClose();
     } catch (err: any) {
-      console.error('Failed to download yt-dlp:', err);
+      console.error(`Failed to download ${depName}:`, err);
       setDependencies(prev => prev.map(dep =>
         dep.name === depName ? { ...dep, status: 'missing' } : dep
       ));

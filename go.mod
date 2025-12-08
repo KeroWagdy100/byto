@@ -4,6 +4,7 @@ go 1.23
 
 require (
 	github.com/google/uuid v1.6.0
+	github.com/ulikunitz/xz v0.5.15
 	github.com/wailsapp/wails/v2 v2.11.0
 )
 

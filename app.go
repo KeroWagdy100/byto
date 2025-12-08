@@ -486,3 +486,32 @@ func (a *App) PerformFullUpdate() map[string]interface{} {
 		},
 	}
 }
+
+func (a *App) CheckFfmpeg() updater.FfmpegStatus {
+	log.Println("Checking ffmpeg installation...")
+	status := a.updater.CheckFfmpeg()
+	log.Printf("ffmpeg status: installed=%v, path=%s, version=%s", status.Installed, status.Path, status.Version)
+	return status
+}
+
+func (a *App) DownloadFfmpeg() error {
+	log.Println("Downloading ffmpeg...")
+	progressCallback := func(downloaded, total int64) {
+		var percentage float64
+		if total > 0 {
+			percentage = float64(downloaded) / float64(total) * 100
+		}
+		runtime.EventsEmit(a.ctx, "ffmpeg_download_progress", map[string]interface{}{
+			"downloaded": downloaded,
+			"total":      total,
+			"percentage": percentage,
+		})
+	}
+	err := a.updater.DownloadFfmpeg(progressCallback)
+	if err != nil {
+		log.Printf("Failed to download ffmpeg: %v", err)
+		return err
+	}
+	log.Println("ffmpeg downloaded successfully")
+	return nil
+}

@@ -1,6 +1,8 @@
 package updater
 
 import (
+	"archive/tar"
+	"archive/zip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -12,7 +14,239 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/ulikunitz/xz"
 )
+
+var ffmpegDownloadURLs = map[string]string{
+	"windows": "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
+	"darwin":  "https://evermeet.cx/ffmpeg/ffmpeg.zip",
+	"linux":   "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz",
+}
+
+type FfmpegStatus struct {
+	Installed bool   `json:"installed"`
+	Path      string `json:"path"`
+	Version   string `json:"version"`
+}
+
+func (u *Updater) GetFfmpegPath() string {
+	execPath, err := os.Executable()
+	if err != nil {
+		execPath = "."
+	}
+	appDir := filepath.Dir(execPath)
+	ffmpegName := "ffmpeg"
+	if runtime.GOOS == "windows" {
+		ffmpegName = "ffmpeg.exe"
+	}
+	return filepath.Join(appDir, ffmpegName)
+}
+
+func (u *Updater) CheckFfmpeg() FfmpegStatus {
+	bundledPath := u.GetFfmpegPath()
+	if _, err := os.Stat(bundledPath); err == nil {
+		version := u.getFfmpegVersion(bundledPath)
+		return FfmpegStatus{
+			Installed: true,
+			Path:      bundledPath,
+			Version:   version,
+		}
+	}
+	// global check
+	globalPath, err := exec.LookPath("ffmpeg")
+	if err == nil {
+		version := u.getFfmpegVersion(globalPath)
+		return FfmpegStatus{
+			Installed: true,
+			Path:      globalPath,
+			Version:   version,
+		}
+	}
+	return FfmpegStatus{
+		Installed: false,
+		Path:      "",
+		Version:   "",
+	}
+}
+
+func (u *Updater) getFfmpegVersion(path string) string {
+	cmd := exec.Command(path, "-version")
+	hideWindow(cmd)
+	output, err := cmd.Output()
+	if err != nil {
+		return "unknown"
+	}
+	lines := strings.SplitN(string(output), "\n", 2)
+	if len(lines) > 0 {
+		// Example: ffmpeg version 6.1.1 ...
+		fields := strings.Fields(lines[0])
+		if len(fields) >= 3 {
+			return fields[2]
+		}
+	}
+	return "unknown"
+}
+
+func (u *Updater) DownloadFfmpeg(progressCallback func(downloaded, total int64)) error {
+	osName := runtime.GOOS
+	url, ok := ffmpegDownloadURLs[osName]
+	if !ok {
+		return fmt.Errorf("ffmpeg auto-download is not supported for this OS: %s", osName)
+	}
+
+	// Download the archive
+	resp, err := u.httpClient.Get(url)
+	if err != nil {
+		return fmt.Errorf("failed to download ffmpeg: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Save archive to temp file
+	ext := ".tmp"
+	if strings.HasSuffix(url, ".zip") {
+		ext = ".zip"
+	} else if strings.HasSuffix(url, ".tar.xz") {
+		ext = ".tar.xz"
+	}
+	tmpFile, err := os.CreateTemp("", "ffmpeg-*"+ext)
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	total := resp.ContentLength
+	var downloaded int64
+	buf := make([]byte, 256*1024)
+	for {
+		n, err := resp.Body.Read(buf)
+		if n > 0 {
+			tmpFile.Write(buf[:n])
+			downloaded += int64(n)
+			if progressCallback != nil {
+				progressCallback(downloaded, total)
+			}
+		}
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return fmt.Errorf("download interrupted: %w", err)
+		}
+	}
+	tmpFile.Close()
+
+	execPath, err := os.Executable()
+	if err != nil {
+		execPath = "."
+	}
+	appDir := filepath.Dir(execPath)
+
+	var ffmpegDest string
+	if osName == "windows" {
+		ffmpegDest = filepath.Join(appDir, "ffmpeg.exe")
+		if err := extractFfmpegFromZip(tmpFile.Name(), ffmpegDest, true); err != nil {
+			return fmt.Errorf("failed to extract ffmpeg.exe: %w", err)
+		}
+	} else if osName == "darwin" {
+		ffmpegDest = filepath.Join(appDir, "ffmpeg")
+		if err := extractFfmpegFromZip(tmpFile.Name(), ffmpegDest, false); err != nil {
+			return fmt.Errorf("failed to extract ffmpeg: %w", err)
+		}
+		if err := os.Chmod(ffmpegDest, 0755); err != nil {
+			return fmt.Errorf("failed to make ffmpeg executable: %w", err)
+		}
+	} else if osName == "linux" {
+		ffmpegDest = filepath.Join(appDir, "ffmpeg")
+		if err := extractFfmpegFromTarXZ(tmpFile.Name(), ffmpegDest); err != nil {
+			return fmt.Errorf("failed to extract ffmpeg: %w", err)
+		}
+		if err := os.Chmod(ffmpegDest, 0755); err != nil {
+			return fmt.Errorf("failed to make ffmpeg executable: %w", err)
+		}
+	}
+	return nil
+}
+
+func extractFfmpegFromZip(zipPath, destPath string, isWindows bool) error {
+	r, err := os.Open(zipPath)
+	if err != nil {
+		return err
+	}
+	defer r.Close()
+	stat, err := r.Stat()
+	if err != nil {
+		return err
+	}
+	zr, err := zip.NewReader(r, stat.Size())
+	if err != nil {
+		return err
+	}
+	exeName := "ffmpeg"
+	if isWindows {
+		exeName = "ffmpeg.exe"
+	}
+	for _, f := range zr.File {
+		if strings.HasSuffix(f.Name, "/"+exeName) || f.Name == exeName {
+			rc, err := f.Open()
+			if err != nil {
+				return err
+			}
+			defer rc.Close()
+			out, err := os.Create(destPath)
+			if err != nil {
+				return err
+			}
+			defer out.Close()
+			_, err = io.Copy(out, rc)
+			return err
+		}
+	}
+	return fmt.Errorf("%s not found in zip", exeName)
+}
+
+func extractFfmpegFromTarXZ(tarxzPath, destPath string) error {
+	file, err := os.Open(tarxzPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	xzReader, err := decompressXZ(file)
+	if err != nil {
+		return err
+	}
+	tarReader := tar.NewReader(xzReader)
+	for {
+		hdr, err := tarReader.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if strings.HasSuffix(hdr.Name, "/ffmpeg") || hdr.Name == "ffmpeg" {
+			out, err := os.Create(destPath)
+			if err != nil {
+				return err
+			}
+			defer out.Close()
+			_, err = io.Copy(out, tarReader)
+			return err
+		}
+	}
+	return fmt.Errorf("ffmpeg not found in tar.xz")
+}
+
+func decompressXZ(r io.Reader) (io.Reader, error) {
+	// Use github.com/ulikunitz/xz for .xz decompression
+	// This import must be added: _ "github.com/ulikunitz/xz"
+	xz, err := xz.NewReader(r)
+	if err != nil {
+		return nil, err
+	}
+	return xz, nil
+}
 
 const AppVersion = "1.0.0"
 

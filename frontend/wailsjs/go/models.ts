@@ -79,6 +79,22 @@ export namespace domain {
 
 export namespace updater {
 	
+	export class FfmpegStatus {
+	    installed: boolean;
+	    path: string;
+	    version: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FfmpegStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.installed = source["installed"];
+	        this.path = source["path"];
+	        this.version = source["version"];
+	    }
+	}
 	export class UpdateResult {
 	    success: boolean;
 	    message: string;

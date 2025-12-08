@@ -10,12 +10,20 @@ export function CheckAppUpdate() {
   return window['go']['main']['App']['CheckAppUpdate']();
 }
 
+export function CheckFfmpeg() {
+  return window['go']['main']['App']['CheckFfmpeg']();
+}
+
 export function CheckYtDlp() {
   return window['go']['main']['App']['CheckYtDlp']();
 }
 
 export function DownloadAppUpdate(arg1) {
   return window['go']['main']['App']['DownloadAppUpdate'](arg1);
+}
+
+export function DownloadFfmpeg() {
+  return window['go']['main']['App']['DownloadFfmpeg']();
 }
 
 export function DownloadYtDlp() {
