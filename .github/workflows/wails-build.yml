@@ -11,6 +11,10 @@ env:
   # Necessary for most environments as build failure can occur due to OOM issues
   NODE_OPTIONS: "--max-old-space-size=4096"
 
+# Required permissions for creating releases
+permissions:
+  contents: write
+
 jobs:
   build:
     strategy:
@@ -76,8 +80,8 @@ jobs:
           name: ${{ matrix.build.artifact-name }}
           path: ${{ matrix.build.artifact-path }}
 
-      - name: Upload to Release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Upload to Release (Windows only)
+        if: startsWith(github.ref, 'refs/tags/') && matrix.build.os == 'windows-latest'
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.build.release-file }}
