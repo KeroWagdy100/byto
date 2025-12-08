@@ -29,7 +29,11 @@ Byto relies on a robust stack to deliver high performance and a small footprint:
 ## Getting Started
 
 ### Installation
-*(Download the latest binary from the Releases page)*
+
+1. Download the latest binary for your platform from the [Releases](https://github.com/OmarNaru1110/byto/releases) page
+2. Extract and run the application
+
+> ⚠️ **Windows Users**: You may see a Windows SmartScreen warning because the app is not code-signed. This is normal for open-source software. Click **"More info"** → **"Run anyway"** to proceed safely.
 
 ### Building from Source
 If you are a developer and want to build Byto yourself, please check our [Contribution Guide](CONTRIBUTING.md).
