@@ -38,34 +38,6 @@ Download the latest release for your platform from the [Releases](https://github
 3. You may see a SmartScreen warning (the app is not code-signed). Click **"More info"** → **"Run anyway"**
 4. Follow the installation wizard
 
-#### macOS
-1. Download `byto-darwin-universal.zip`
-2. Extract the archive
-3. **Option A**: Open `byto.app` directly
-4. **Option B**: Run the `byto.pkg` installer
-5. If you see a Gatekeeper warning, right-click the app → **Open** → **Open**
-
-#### Linux
-Byto uses GTK3 and WebKit2GTK for its UI. These are system libraries that must be installed on your machine (they are not bundled with the binary).
-
-1. Download `byto-linux-amd64.zip` and extract it
-2. Install the required dependencies:
-   ```bash
-   # Ubuntu/Debian
-   sudo apt install libgtk-3-0 libwebkit2gtk-4.0-37
-   
-   # Fedora
-   sudo dnf install gtk3 webkit2gtk3
-   
-   # Arch
-   sudo pacman -S gtk3 webkit2gtk
-   ```
-3. Make the binary executable and run:
-   ```bash
-   chmod +x byto-linux-amd64
-   ./byto-linux-amd64
-   ```
-
 ### Building from Source
 If you are a developer and want to build Byto yourself, please check our [Contribution Guide](CONTRIBUTING.md).
 
