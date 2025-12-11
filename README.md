@@ -4,7 +4,7 @@
 
 ![byto wallpaper](/assets/bytologowallpaper.png)
 
-![GitHub Downloads (all assets, latest release)](https://img.shields.io/github/downloads/OmarNaru1110/byto/latest/total?style=for-the-badge)
+![GitHub Downloads (all releases)](https://img.shields.io/github/downloads/OmarNaru1110/byto/total?style=for-the-badge)
 
 **byto** wraps the complexity of the command-line interface into a beautiful, easy-to-use desktop application. Whether you're downloading a single media or archiving a playlist, byto handles it with efficiency and style.
 

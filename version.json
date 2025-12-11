@@ -1,9 +1,9 @@
 {
-  "version": "1.0.0",
-  "release_date": "2024-12-08",
-  "changelog": "initial version",
+  "version": "1.0.1",
+  "release_date": "2024-12-11",
+  "changelog": "This update introduces a requirement for running the application with administrator privileges to ensure all dependency downloads complete successfully. It also improves the reliability of setup operations that previously failed due to insufficient permissions.",
   "downloads": {
-    "windows": "https://github.com/OmarNaru1110/byto/releases/download/v1.0.0/byto-amd64-installer.exe",
+    "windows": "https://github.com/OmarNaru1110/byto/releases/download/v1.0.1/byto-amd64-installer.exe",
     "darwin": "",
     "linux": ""
   },
