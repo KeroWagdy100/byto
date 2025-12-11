@@ -38,7 +38,7 @@ Download the latest release from the [Releases](https://github.com/OmarNaru1110/
 1. Download `byto-amd64-installer.exe`
 2. You may see a SmartScreen warning (the app is not code-signed). Click **"More info"** → **"Run anyway"**
 3. Follow the installation wizard
-> Note: when checking for updates, run byto as administrator
+
 ### Building from Source
 If you are a developer and want to build Byto yourself, please check our [Contribution Guide](CONTRIBUTING.md).
 
