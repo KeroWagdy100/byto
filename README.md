@@ -1,10 +1,12 @@
 # byto
 
-> A modern, lightweight, and powerful GUI for [yt-dlp](https://github.com/yt-dlp/yt-dlp), designed to simplify video downloads.
+> A modern, lightweight, and powerful GUI for [yt-dlp](https://github.com/yt-dlp/yt-dlp), designed to simplify media downloads.
 
 ![byto wallpaper](/assets/bytologowallpaper.png)
 
-![GitHub Downloads (all releases)](https://img.shields.io/github/downloads/OmarNaru1110/byto/total?style=for-the-badge)
+<p align="center">
+  <img src="https://img.shields.io/github/downloads/OmarNaru1110/byto/total?style=for-the-badge" alt="GitHub Downloads (all releases)">
+</p>
 
 **byto** wraps the complexity of the command-line interface into a beautiful, easy-to-use desktop application. Whether you're downloading a single media or archiving a playlist, byto handles it with efficiency and style.
 
