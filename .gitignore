@@ -5,3 +5,4 @@ frontend/build
 *.drawio
 *.drawio.*
 *.exe
+PLANNED_ISSUES.md
