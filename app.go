@@ -185,7 +185,7 @@ func (a *App) AddToQueue(url string, quality string, customPath string) string {
 	a.queue.Add(&domain.Media{
 		ID:       id,
 		URL:      url,
-		Title:    "Detecting...",
+		Title:    "Pending...",
 		FilePath: filePath,
 		Quality:  q,
 		Status:   domain.Pending,
@@ -230,7 +230,7 @@ func (a *App) StartDownloads() {
 			media.OnProgress = func(id string, progress domain.DownloadProgress) {
 				// Get the current media state to include title
 				currentMedia, err := a.queue.Get(id)
-				title := "Detecting..."
+				title := "Pending..."
 				totalBytes := int64(0)
 				if err == nil && currentMedia != nil {
 					title = currentMedia.Title
@@ -340,7 +340,7 @@ func (a *App) StartSingleDownload(id string) {
 
 	media.OnProgress = func(id string, progress domain.DownloadProgress) {
 		currentMedia, err := a.queue.Get(id)
-		title := "Detecting..."
+		title := "Pending..."
 		totalBytes := int64(0)
 		if err == nil && currentMedia != nil {
 			title = currentMedia.Title

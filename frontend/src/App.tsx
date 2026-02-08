@@ -74,7 +74,7 @@ function mediaToDownloadVideo(media: domain.Media): DownloadVideo {
     return {
         id: media.id,
         url: media.url,
-        fileName: media.title || 'Detecting...',
+        fileName: media.title || 'Pending...',
         filePath: media.file_path || '',
         progress: media.progress?.percentage || 0,
         fileSize,
@@ -188,7 +188,7 @@ export default function App() {
         const newDownload: DownloadVideo = {
             id,
             url: pendingUrl,
-            fileName: 'Detecting...',
+            fileName: 'Pending...',
             filePath,
             progress: 0,
             fileSize: '--',
