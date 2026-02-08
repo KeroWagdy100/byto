@@ -151,9 +151,18 @@ export function DependencyCheckDialog({ onClose }: DependencyCheckDialogProps) {
     }
   };
 
+  // Only allow closing when all dependencies are found
+  const canClose = dependencies.every(dep => dep.status === 'found');
+
   return (
-    <Dialog open={true} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md bg-[#141414] border border-[#262626] text-gray-100">
+    <Dialog open={true} onOpenChange={(open) => !open && canClose && onClose()}>
+      <DialogContent
+        className="max-w-md bg-[#141414] border border-[#262626] text-gray-100"
+        hideCloseButton={!canClose}
+        onEscapeKeyDown={(e) => { if (!canClose) e.preventDefault(); }}
+        onPointerDownOutside={(e) => { if (!canClose) e.preventDefault(); }}
+        onInteractOutside={(e) => { if (!canClose) e.preventDefault(); }}
+      >
         <DialogHeader>
           <DialogTitle className="text-gray-100">Checking Dependencies</DialogTitle>
         </DialogHeader>
