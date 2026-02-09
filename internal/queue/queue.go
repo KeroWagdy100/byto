@@ -20,6 +20,9 @@ func NewQueue() *Queue {
 func (q *Queue) Add(media *domain.Media) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if media.ID == "" {
+		return
+	}
 	q.items = append(q.items, media)
 }
 
