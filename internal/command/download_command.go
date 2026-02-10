@@ -73,7 +73,7 @@ func (c *DownloadCommand) Execute(args any) error {
 		scanner.Buffer(buf, 1024*1024)
 
 		for scanner.Scan() {
-			line := scanner.Text()
+			line := ensureUTF8(scanner.Text())
 			line = strings.TrimSpace(line)
 			if line == "" {
 				continue
