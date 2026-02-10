@@ -200,6 +200,7 @@ func (a *App) AddToQueue(url string, quality string, customPath string) string {
 
 func (a *App) RemoveFromQueue(id string) error {
 	log.Printf("Removing from queue: %s", id)
+	a.PauseSingleDownload(id)
 	return a.queue.Remove(id)
 }
 
