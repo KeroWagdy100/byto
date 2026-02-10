@@ -8,11 +8,11 @@ import (
 
 type YTDLPDownloadParser struct{}
 
-// Format: [byto] <title> [downloaded] <bytes> [total] <bytes|NA> [frag] <index|NA> [frags] <count|NA>
-// Title is captured between [byto] and [downloaded] markers
-var logRegex = regexp.MustCompile(`\[byto\]\s+(.+?)\s+\[downloaded\]\s+(\d+|NA)\s+\[total\]\s+(\d+|NA)\s+\[frag\]\s+(\d+|NA)\s+\[frags\]\s+(\d+|NA)$`)
-
 func (p YTDLPDownloadParser) Parse(input string) (map[string]string, error) {
+	// Format: [byto] <title> [downloaded] <bytes> [total] <bytes|NA> [frag] <index|NA> [frags] <count|NA>
+	// Title is captured between [byto] and [downloaded] markers
+	var logRegex = regexp.MustCompile(`\[byto\]\s+(.+?)\s+\[downloaded\]\s+(\d+|NA)\s+\[total\]\s+(\d+|NA)\s+\[frag\]\s+(\d+|NA)\s+\[frags\]\s+(\d+|NA)$`)
+
 	input = strings.TrimSpace(input)
 	matches := logRegex.FindStringSubmatch(input)
 	if len(matches) < 6 {
