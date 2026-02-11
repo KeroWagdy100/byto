@@ -1,0 +1,342 @@
+package builder_test
+
+import (
+	"byto/internal/builder"
+	"byto/internal/domain"
+	"runtime"
+	"strings"
+	"testing"
+)
+
+// ---------------------------------------------------------------------------
+// Constructor
+// ---------------------------------------------------------------------------
+
+func TestNewYTDLPBuilder_NotNil(t *testing.T) {
+	b := builder.NewYTDLPBuilder()
+	if b == nil {
+		t.Fatal("NewYTDLPBuilder returned nil")
+	}
+}
+
+func TestNewYTDLPBuilder_EmptyBuild(t *testing.T) {
+	args := builder.NewYTDLPBuilder().Build()
+	if len(args) != 0 {
+		t.Errorf("expected empty args from fresh builder, got %v", args)
+	}
+}
+
+func TestNewYTDLPBuilder_YtDlpPathNonEmpty(t *testing.T) {
+	p := builder.NewYTDLPBuilder().GetYtDlpPath()
+	if p == "" {
+		t.Fatal("GetYtDlpPath returned empty string")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ProgressTemplate
+// ---------------------------------------------------------------------------
+
+func TestProgressTemplate_AddsArgs(t *testing.T) {
+	args := builder.NewYTDLPBuilder().ProgressTemplate("TPL").Build()
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d: %v", len(args), args)
+	}
+	if args[0] != "--progress-template" {
+		t.Errorf("expected --progress-template, got %s", args[0])
+	}
+	if args[1] != "TPL" {
+		t.Errorf("expected TPL, got %s", args[1])
+	}
+}
+
+func TestProgressTemplate_EmptyString(t *testing.T) {
+	args := builder.NewYTDLPBuilder().ProgressTemplate("").Build()
+	if len(args) != 2 || args[1] != "" {
+		t.Errorf("expected empty template value, got %v", args)
+	}
+}
+
+func TestProgressTemplate_ComplexTemplate(t *testing.T) {
+	tpl := "[byto] %(info.title)s [downloaded] %(progress.downloaded_bytes)s"
+	args := builder.NewYTDLPBuilder().ProgressTemplate(tpl).Build()
+	if args[1] != tpl {
+		t.Errorf("template mismatch: got %s", args[1])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Newline
+// ---------------------------------------------------------------------------
+
+func TestNewline_AddsFlag(t *testing.T) {
+	args := builder.NewYTDLPBuilder().Newline().Build()
+	if len(args) != 1 || args[0] != "--newline" {
+		t.Errorf("expected [--newline], got %v", args)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Quality
+// ---------------------------------------------------------------------------
+
+func TestQuality_AllLevels(t *testing.T) {
+	tests := []struct {
+		quality  domain.VideoQuality
+		contains string
+	}{
+		{domain.Quality360p, "360"},
+		{domain.Quality480p, "480"},
+		{domain.Quality720p, "720"},
+		{domain.Quality1080p, "1080"},
+		{domain.Quality1440p, "1440"},
+		{domain.Quality2160p, "2160"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.contains+"p", func(t *testing.T) {
+			args := builder.NewYTDLPBuilder().Quality(tt.quality).Build()
+			if len(args) != 2 {
+				t.Fatalf("expected 2 args, got %d: %v", len(args), args)
+			}
+			if args[0] != "-f" {
+				t.Errorf("expected -f flag, got %s", args[0])
+			}
+			if !strings.Contains(args[1], tt.contains) {
+				t.Errorf("expected format string to contain %s, got %s", tt.contains, args[1])
+			}
+		})
+	}
+}
+
+func TestQuality_DefaultFallback(t *testing.T) {
+	// An invalid quality value should produce a "best" fallback
+	args := builder.NewYTDLPBuilder().Quality(domain.VideoQuality(99)).Build()
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d: %v", len(args), args)
+	}
+	if !strings.Contains(args[1], "best") {
+		t.Errorf("expected best fallback, got %s", args[1])
+	}
+}
+
+func TestQuality_FormatContainsFallback(t *testing.T) {
+	// All quality levels should contain /best as a final fallback
+	args := builder.NewYTDLPBuilder().Quality(domain.Quality720p).Build()
+	if !strings.HasSuffix(args[1], "/best") {
+		t.Errorf("expected format to end with /best fallback, got %s", args[1])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// DownloadPath
+// ---------------------------------------------------------------------------
+
+func TestDownloadPath_AddsOutputTemplate(t *testing.T) {
+	args := builder.NewYTDLPBuilder().DownloadPath("/tmp/dl").Build()
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d: %v", len(args), args)
+	}
+	if args[0] != "-o" {
+		t.Errorf("expected -o flag, got %s", args[0])
+	}
+	if !strings.HasPrefix(args[1], "/tmp/dl/") {
+		t.Errorf("expected path prefix /tmp/dl/, got %s", args[1])
+	}
+	if !strings.Contains(args[1], "%(title)") {
+		t.Errorf("expected template with %%(title), got %s", args[1])
+	}
+	if !strings.Contains(args[1], "%(ext)s") {
+		t.Errorf("expected template with %%(ext)s, got %s", args[1])
+	}
+}
+
+func TestDownloadPath_EmptyPath(t *testing.T) {
+	args := builder.NewYTDLPBuilder().DownloadPath("").Build()
+	if args[1] != "/%(title).100s.%(ext)s" {
+		t.Errorf("unexpected output template for empty path: %s", args[1])
+	}
+}
+
+func TestDownloadPath_PathWithSpaces(t *testing.T) {
+	args := builder.NewYTDLPBuilder().DownloadPath("/my path/dir").Build()
+	if !strings.Contains(args[1], "/my path/dir/") {
+		t.Errorf("path with spaces not preserved: %s", args[1])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// SafeFilenames
+// ---------------------------------------------------------------------------
+
+func TestSafeFilenames_PlatformSpecific(t *testing.T) {
+	args := builder.NewYTDLPBuilder().SafeFilenames().Build()
+	if len(args) != 1 {
+		t.Fatalf("expected 1 arg, got %d: %v", len(args), args)
+	}
+	if runtime.GOOS == "windows" {
+		if args[0] != "--windows-filenames" {
+			t.Errorf("expected --windows-filenames on Windows, got %s", args[0])
+		}
+	} else {
+		if args[0] != "--restrict-filenames" {
+			t.Errorf("expected --restrict-filenames on non-Windows, got %s", args[0])
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// URL
+// ---------------------------------------------------------------------------
+
+func TestURL_AddsURL(t *testing.T) {
+	url := "https://youtube.com/watch?v=abc123"
+	args := builder.NewYTDLPBuilder().URL(url).Build()
+	if len(args) != 1 || args[0] != url {
+		t.Errorf("expected [%s], got %v", url, args)
+	}
+}
+
+func TestURL_EmptyURL(t *testing.T) {
+	args := builder.NewYTDLPBuilder().URL("").Build()
+	if len(args) != 1 || args[0] != "" {
+		t.Errorf("expected [\"\"], got %v", args)
+	}
+}
+
+func TestURL_URLWithSpecialChars(t *testing.T) {
+	url := "https://example.com/video?a=1&b=2&list=PLabc"
+	args := builder.NewYTDLPBuilder().URL(url).Build()
+	if args[0] != url {
+		t.Errorf("URL not preserved: got %s", args[0])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Update
+// ---------------------------------------------------------------------------
+
+func TestUpdate_AddsFlag(t *testing.T) {
+	args := builder.NewYTDLPBuilder().Update().Build()
+	if len(args) != 1 || args[0] != "--update" {
+		t.Errorf("expected [--update], got %v", args)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Chaining
+// ---------------------------------------------------------------------------
+
+func TestChaining_MultipleMethods(t *testing.T) {
+	args := builder.NewYTDLPBuilder().
+		ProgressTemplate("TPL").
+		Newline().
+		Quality(domain.Quality720p).
+		DownloadPath("/tmp").
+		SafeFilenames().
+		URL("http://example.com").
+		Build()
+
+	// --progress-template TPL --newline -f <fmt> -o <output> --windows-filenames/--restrict-filenames http://example.com
+	expected := 9
+	if runtime.GOOS != "windows" {
+		expected = 9 // same count, different flag name
+	}
+	if len(args) != expected {
+		t.Errorf("expected %d args from full chain, got %d: %v", expected, len(args), args)
+	}
+}
+
+func TestChaining_ReturnsSameBuilder(t *testing.T) {
+	b := builder.NewYTDLPBuilder()
+	b2 := b.ProgressTemplate("T")
+	if b != b2 {
+		t.Error("ProgressTemplate did not return same builder")
+	}
+	b3 := b.Newline()
+	if b != b3 {
+		t.Error("Newline did not return same builder")
+	}
+	b4 := b.Quality(domain.Quality720p)
+	if b != b4 {
+		t.Error("Quality did not return same builder")
+	}
+	b5 := b.DownloadPath("/tmp")
+	if b != b5 {
+		t.Error("DownloadPath did not return same builder")
+	}
+	b6 := b.SafeFilenames()
+	if b != b6 {
+		t.Error("SafeFilenames did not return same builder")
+	}
+	b7 := b.URL("http://example.com")
+	if b != b7 {
+		t.Error("URL did not return same builder")
+	}
+	b8 := b.Update()
+	if b != b8 {
+		t.Error("Update did not return same builder")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Build idempotency
+// ---------------------------------------------------------------------------
+
+func TestBuild_ReturnsAccumulatedArgs(t *testing.T) {
+	b := builder.NewYTDLPBuilder().URL("http://a.com").Newline()
+	first := b.Build()
+	second := b.Build()
+	if len(first) != len(second) {
+		t.Errorf("Build not idempotent: %v vs %v", first, second)
+	}
+	for i := range first {
+		if first[i] != second[i] {
+			t.Errorf("Build[%d] mismatch: %s vs %s", i, first[i], second[i])
+		}
+	}
+}
+
+func TestBuild_ArgsAfterBuild(t *testing.T) {
+	b := builder.NewYTDLPBuilder().URL("http://a.com")
+	args1 := b.Build()
+	b.Newline()
+	args2 := b.Build()
+	if len(args2) != len(args1)+1 {
+		t.Errorf("expected args to grow after adding Newline: %d vs %d", len(args1), len(args2))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// GetYtDlpPath
+// ---------------------------------------------------------------------------
+
+func TestGetYtDlpPath_ConsistentAcrossCalls(t *testing.T) {
+	b := builder.NewYTDLPBuilder()
+	p1 := b.GetYtDlpPath()
+	p2 := b.GetYtDlpPath()
+	if p1 != p2 {
+		t.Errorf("GetYtDlpPath not consistent: %s vs %s", p1, p2)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Multiple builders are independent
+// ---------------------------------------------------------------------------
+
+func TestMultipleBuilders_Independent(t *testing.T) {
+	b1 := builder.NewYTDLPBuilder().URL("http://a.com")
+	b2 := builder.NewYTDLPBuilder().URL("http://b.com").Newline()
+
+	args1 := b1.Build()
+	args2 := b2.Build()
+
+	if len(args1) == len(args2) {
+		t.Error("independent builders should have different arg counts")
+	}
+	if args1[0] == args2[0] {
+		// URLs are at different positions or same position but different values
+		// Actually URL is always last, so args1[0] = "http://a.com", args2[0] = "http://b.com"
+		t.Error("independent builders should have different URLs")
+	}
+}

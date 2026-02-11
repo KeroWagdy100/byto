@@ -21,6 +21,12 @@ type DownloadCommand struct {
 func (c *DownloadCommand) Execute(args any) error {
 	log.Printf("DownloadCommand: Starting execution with args: %+v", args)
 
+	if c.Builder == nil {
+		err := fmt.Errorf("YTDLPBuilder is nil")
+		log.Printf("DownloadCommand: Builder validation failed: %v", err)
+		return err
+	}
+
 	media, ok := args.(*domain.Media)
 	if !ok {
 		err := fmt.Errorf("invalid arguments, expected *domain.Media")

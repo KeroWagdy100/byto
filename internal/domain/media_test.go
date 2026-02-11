@@ -1,0 +1,479 @@
+package domain_test
+
+import (
+	"byto/internal/domain"
+	"context"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+)
+
+// ===========================================================================
+// AppendLog
+// ===========================================================================
+
+func TestAppendLog_SingleEntry(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	m.AppendLog("line one")
+	if len(m.Progress.Logs) != 1 {
+		t.Fatalf("expected 1 log, got %d", len(m.Progress.Logs))
+	}
+	if m.Progress.Logs[0] != "line one" {
+		t.Errorf("expected 'line one', got %q", m.Progress.Logs[0])
+	}
+}
+
+func TestAppendLog_MultipleEntries(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	m.AppendLog("a")
+	m.AppendLog("b")
+	m.AppendLog("c")
+	if len(m.Progress.Logs) != 3 {
+		t.Fatalf("expected 3 logs, got %d", len(m.Progress.Logs))
+	}
+}
+
+func TestAppendLog_EmptyString(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	m.AppendLog("")
+	if len(m.Progress.Logs) != 1 {
+		t.Fatalf("expected 1 log (empty), got %d", len(m.Progress.Logs))
+	}
+	if m.Progress.Logs[0] != "" {
+		t.Errorf("expected empty string, got %q", m.Progress.Logs[0])
+	}
+}
+
+func TestAppendLog_CallsOnProgress(t *testing.T) {
+	var called int32
+	m := &domain.Media{
+		ID: "1",
+		OnProgress: func(id string, p domain.DownloadProgress) {
+			atomic.AddInt32(&called, 1)
+		},
+	}
+	m.AppendLog("test")
+	time.Sleep(50 * time.Millisecond) // callback runs in goroutine
+	if atomic.LoadInt32(&called) == 0 {
+		t.Error("OnProgress callback was not called")
+	}
+}
+
+func TestAppendLog_NoCallbackNoPanic(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	// Should not panic when OnProgress is nil
+	m.AppendLog("no panic")
+}
+
+func TestAppendLog_CallbackReceivesCorrectID(t *testing.T) {
+	var receivedID string
+	var mu sync.Mutex
+	m := &domain.Media{
+		ID: "my-media-42",
+		OnProgress: func(id string, p domain.DownloadProgress) {
+			mu.Lock()
+			receivedID = id
+			mu.Unlock()
+		},
+	}
+	m.AppendLog("check id")
+	time.Sleep(50 * time.Millisecond)
+	mu.Lock()
+	defer mu.Unlock()
+	if receivedID != "my-media-42" {
+		t.Errorf("expected id my-media-42, got %q", receivedID)
+	}
+}
+
+// ===========================================================================
+// SetTitle
+// ===========================================================================
+
+func TestSetTitle_Updates(t *testing.T) {
+	m := &domain.Media{ID: "1", Title: "Old"}
+	m.SetTitle("New Title")
+	if m.Title != "New Title" {
+		t.Errorf("expected 'New Title', got %q", m.Title)
+	}
+}
+
+func TestSetTitle_EmptyString(t *testing.T) {
+	m := &domain.Media{ID: "1", Title: "Has Title"}
+	m.SetTitle("")
+	if m.Title != "" {
+		t.Errorf("expected empty title, got %q", m.Title)
+	}
+}
+
+func TestSetTitle_CallsOnTitleChange(t *testing.T) {
+	var called int32
+	var receivedTitle string
+	var mu sync.Mutex
+	m := &domain.Media{
+		ID: "1",
+		OnTitleChange: func(id string, title string) {
+			atomic.AddInt32(&called, 1)
+			mu.Lock()
+			receivedTitle = title
+			mu.Unlock()
+		},
+	}
+	m.SetTitle("Updated")
+	time.Sleep(50 * time.Millisecond)
+	if atomic.LoadInt32(&called) == 0 {
+		t.Error("OnTitleChange callback was not called")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if receivedTitle != "Updated" {
+		t.Errorf("expected title 'Updated', got %q", receivedTitle)
+	}
+}
+
+func TestSetTitle_NoCallbackNoPanic(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	m.SetTitle("safe")
+}
+
+// ===========================================================================
+// UpdateProgress
+// ===========================================================================
+
+func TestUpdateProgress_SetsValues(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	m.UpdateProgress(500, 1000, 50)
+	if m.Progress.DownloadedBytes != 500 {
+		t.Errorf("expected downloaded 500, got %d", m.Progress.DownloadedBytes)
+	}
+	if m.TotalBytes != 1000 {
+		t.Errorf("expected total 1000, got %d", m.TotalBytes)
+	}
+	if m.Progress.Percentage != 50 {
+		t.Errorf("expected percentage 50, got %d", m.Progress.Percentage)
+	}
+}
+
+func TestUpdateProgress_ZeroValues(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	m.UpdateProgress(0, 0, 0)
+	if m.Progress.DownloadedBytes != 0 || m.TotalBytes != 0 || m.Progress.Percentage != 0 {
+		t.Error("expected all zeros")
+	}
+}
+
+func TestUpdateProgress_FullProgress(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	m.UpdateProgress(1000, 1000, 100)
+	if m.Progress.Percentage != 100 {
+		t.Errorf("expected 100%%, got %d", m.Progress.Percentage)
+	}
+}
+
+func TestUpdateProgress_CallsOnProgress(t *testing.T) {
+	var called int32
+	m := &domain.Media{
+		ID: "1",
+		OnProgress: func(id string, p domain.DownloadProgress) {
+			atomic.AddInt32(&called, 1)
+		},
+	}
+	m.UpdateProgress(100, 200, 50)
+	time.Sleep(50 * time.Millisecond)
+	if atomic.LoadInt32(&called) == 0 {
+		t.Error("OnProgress callback was not called")
+	}
+}
+
+func TestUpdateProgress_NoCallbackNoPanic(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	m.UpdateProgress(100, 200, 50)
+}
+
+func TestUpdateProgress_LargeValues(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	m.UpdateProgress(999_999_999_999, 1_000_000_000_000, 99)
+	if m.Progress.DownloadedBytes != 999_999_999_999 {
+		t.Errorf("large downloaded value not stored correctly: %d", m.Progress.DownloadedBytes)
+	}
+	if m.TotalBytes != 1_000_000_000_000 {
+		t.Errorf("large total value not stored correctly: %d", m.TotalBytes)
+	}
+}
+
+func TestUpdateProgress_OverwritesPrevious(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	m.UpdateProgress(100, 200, 50)
+	m.UpdateProgress(200, 200, 100)
+	if m.Progress.DownloadedBytes != 200 {
+		t.Errorf("expected 200 after overwrite, got %d", m.Progress.DownloadedBytes)
+	}
+	if m.Progress.Percentage != 100 {
+		t.Errorf("expected 100%% after overwrite, got %d", m.Progress.Percentage)
+	}
+}
+
+// ===========================================================================
+// SetStatus
+// ===========================================================================
+
+func TestSetStatus_AllStatuses(t *testing.T) {
+	statuses := []domain.DownloadStatus{
+		domain.Pending,
+		domain.InProgress,
+		domain.Completed,
+		domain.Failed,
+		domain.Paused,
+	}
+	for _, s := range statuses {
+		m := &domain.Media{ID: "1"}
+		m.SetStatus(s)
+		if m.Status != s {
+			t.Errorf("expected status %d, got %d", s, m.Status)
+		}
+	}
+}
+
+func TestSetStatus_CallsOnStatusChange(t *testing.T) {
+	var receivedStatus domain.DownloadStatus
+	var mu sync.Mutex
+	var called int32
+	m := &domain.Media{
+		ID: "1",
+		OnStatusChange: func(id string, s domain.DownloadStatus) {
+			atomic.AddInt32(&called, 1)
+			mu.Lock()
+			receivedStatus = s
+			mu.Unlock()
+		},
+	}
+	m.SetStatus(domain.Completed)
+	time.Sleep(50 * time.Millisecond)
+	if atomic.LoadInt32(&called) == 0 {
+		t.Error("OnStatusChange not called")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if receivedStatus != domain.Completed {
+		t.Errorf("expected Completed, got %d", receivedStatus)
+	}
+}
+
+func TestSetStatus_NoCallbackNoPanic(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	m.SetStatus(domain.Failed)
+}
+
+func TestSetStatus_TransitionSequence(t *testing.T) {
+	m := &domain.Media{ID: "1", Status: domain.Pending}
+	m.SetStatus(domain.InProgress)
+	if m.Status != domain.InProgress {
+		t.Errorf("expected InProgress, got %d", m.Status)
+	}
+	m.SetStatus(domain.Completed)
+	if m.Status != domain.Completed {
+		t.Errorf("expected Completed, got %d", m.Status)
+	}
+}
+
+// ===========================================================================
+// Cancel
+// ===========================================================================
+
+func TestCancel_WithCancelFunc(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	m := &domain.Media{
+		ID:         "1",
+		Ctx:        ctx,
+		CancelFunc: cancel,
+	}
+
+	m.Cancel()
+	select {
+	case <-ctx.Done():
+		// expected
+	default:
+		t.Error("context was not cancelled")
+	}
+}
+
+func TestCancel_NilCancelFunc_NoPanic(t *testing.T) {
+	m := &domain.Media{ID: "1", CancelFunc: nil}
+	// Should not panic
+	m.Cancel()
+}
+
+func TestCancel_DoubleCancel_NoPanic(t *testing.T) {
+	_, cancel := context.WithCancel(context.Background())
+	m := &domain.Media{ID: "1", CancelFunc: cancel}
+	m.Cancel()
+	m.Cancel() // second call should not panic
+}
+
+// ===========================================================================
+// Concurrent access safety
+// ===========================================================================
+
+func TestMedia_ConcurrentAppendLog(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	var wg sync.WaitGroup
+	n := 100
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			defer wg.Done()
+			m.AppendLog("log entry")
+		}(i)
+	}
+	wg.Wait()
+	if len(m.Progress.Logs) != n {
+		t.Errorf("expected %d logs after concurrent writes, got %d", n, len(m.Progress.Logs))
+	}
+}
+
+func TestMedia_ConcurrentSetTitle(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	var wg sync.WaitGroup
+	n := 100
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			defer wg.Done()
+			m.SetTitle("title")
+		}(i)
+	}
+	wg.Wait()
+	if m.Title != "title" {
+		t.Errorf("expected 'title', got %q", m.Title)
+	}
+}
+
+func TestMedia_ConcurrentUpdateProgress(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	var wg sync.WaitGroup
+	n := 100
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			defer wg.Done()
+			m.UpdateProgress(int64(i), 100, i)
+		}(i)
+	}
+	wg.Wait()
+	// Just verify no race/panic occurred
+}
+
+func TestMedia_ConcurrentSetStatus(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	var wg sync.WaitGroup
+	n := 100
+	wg.Add(n)
+	for i := 0; i < n; i++ {
+		go func(i int) {
+			defer wg.Done()
+			m.SetStatus(domain.DownloadStatus(i % 5))
+		}(i)
+	}
+	wg.Wait()
+	// Just verify no race/panic occurred
+}
+
+func TestMedia_ConcurrentMixedOperations(t *testing.T) {
+	m := &domain.Media{
+		ID:             "1",
+		OnProgress:     func(id string, p domain.DownloadProgress) {},
+		OnStatusChange: func(id string, s domain.DownloadStatus) {},
+		OnTitleChange:  func(id string, title string) {},
+	}
+	var wg sync.WaitGroup
+	wg.Add(4)
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 50; i++ {
+			m.AppendLog("log")
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 50; i++ {
+			m.SetTitle("title")
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 50; i++ {
+			m.UpdateProgress(int64(i), 100, i)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for i := 0; i < 50; i++ {
+			m.SetStatus(domain.InProgress)
+		}
+	}()
+	wg.Wait()
+}
+
+// ===========================================================================
+// Zero / default Media
+// ===========================================================================
+
+func TestMedia_ZeroValue_SafeOperations(t *testing.T) {
+	var m domain.Media
+	// All operations on zero-value Media should not panic
+	m.AppendLog("test")
+	m.SetTitle("title")
+	m.UpdateProgress(0, 0, 0)
+	m.SetStatus(domain.Pending)
+	m.Cancel()
+}
+
+func TestMedia_ProgressLogsInitiallyEmpty(t *testing.T) {
+	m := &domain.Media{ID: "1"}
+	if m.Progress.Logs != nil {
+		t.Error("expected nil logs initially")
+	}
+	if m.Progress.Percentage != 0 {
+		t.Errorf("expected 0 percentage, got %d", m.Progress.Percentage)
+	}
+	if m.Progress.DownloadedBytes != 0 {
+		t.Errorf("expected 0 downloaded bytes, got %d", m.Progress.DownloadedBytes)
+	}
+}
+
+// ===========================================================================
+// Enums
+// ===========================================================================
+
+func TestVideoQuality_Values(t *testing.T) {
+	if domain.Quality360p != 0 {
+		t.Errorf("Quality360p should be 0, got %d", domain.Quality360p)
+	}
+	if domain.Quality2160p != 5 {
+		t.Errorf("Quality2160p should be 5, got %d", domain.Quality2160p)
+	}
+}
+
+func TestDownloadStatus_Values(t *testing.T) {
+	if domain.Pending != 0 {
+		t.Errorf("Pending should be 0, got %d", domain.Pending)
+	}
+	if domain.Paused != 4 {
+		t.Errorf("Paused should be 4, got %d", domain.Paused)
+	}
+}
+
+func TestDownloadStatus_Sequence(t *testing.T) {
+	expected := []domain.DownloadStatus{
+		domain.Pending,
+		domain.InProgress,
+		domain.Completed,
+		domain.Failed,
+		domain.Paused,
+	}
+	for i, s := range expected {
+		if int(s) != i {
+			t.Errorf("status %d has value %d, expected %d", i, s, i)
+		}
+	}
+}
