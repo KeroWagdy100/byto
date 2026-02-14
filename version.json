@@ -1,9 +1,9 @@
 {
-  "version": "1.1.0",
-  "release_date": "2024-12-11",
-  "changelog": "New per-media download settings! Each download now has its own quality and path - select your preferences when adding a URL. Your choices are remembered for next time. Global settings simplified to only parallel downloads count.",
+  "version": "1.1.1",
+  "release_date": "2026-02-14",
+  "changelog": "Bug Fixes:\n- Fixed deleting downloads that are in progress: previously, cancelling an in-progress download removed it from the queue but the download continued in the background. Now the download is properly stopped and removed.\n- Fixed Arabic title rendering: media with Arabic titles previously displayed as garbled symbols (e.g. ��� ��� ����). Titles now render correctly.",
   "downloads": {
-    "windows": "https://github.com/OmarNaru1110/byto/releases/download/v1.1.0/byto-amd64-installer.exe",
+    "windows": "https://github.com/OmarNaru1110/byto/releases/download/v1.1.1/byto-amd64-installer.exe",
     "darwin": "",
     "linux": ""
   },
