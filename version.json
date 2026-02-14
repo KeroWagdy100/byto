@@ -1,5 +1,5 @@
 {
-  "version": "1.1.2",
+  "version": "1.1.3",
   "release_date": "2026-02-14",
   "changelog": "Bug Fixes:\n- Fixed changelog text overflowing the update dialog when content is too long\n- Fixed app update installer not behaving correctly after download\n\nEnhancements:\n- Installer now offers to launch Byto immediately after setup\n- Simplified default installation path",
   "downloads": {
