@@ -44,6 +44,7 @@ export function SettingsPanel({
     status: 'idle',
     message: ''
   });
+  const [changelogOpen, setChangelogOpen] = useState(false);
 
   // Load app version on mount
   useEffect(() => {
@@ -246,13 +247,15 @@ export function SettingsPanel({
                   </div>
                 )}
 
-                {/* Changelog */}
+                {/* Changelog link */}
                 {updateState.appResult?.has_update && updateState.appResult.changelog && (
-                  <div className="mt-2 p-3 bg-[#0d0d0d] rounded border border-[#333]">
-                    <p className="text-xs text-gray-400 mb-1">What's new in v{updateState.appResult.latest_version}:</p>
-                    <pre className="text-xs text-gray-300 whitespace-pre-wrap font-sans">
-                      {updateState.appResult.changelog}
-                    </pre>
+                  <div>
+                    <button
+                      onClick={() => setChangelogOpen(true)}
+                      className="text-xs text-blue-400 hover:text-blue-300 underline cursor-pointer pl-6"
+                    >
+                      What's new in v{updateState.appResult.latest_version}
+                    </button>
                   </div>
                 )}
 
@@ -309,6 +312,25 @@ export function SettingsPanel({
           </Button>
         </div>
       </DialogContent>
+
+      {/* Changelog Dialog */}
+      <Dialog open={changelogOpen} onOpenChange={setChangelogOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh] bg-[#141414] border border-[#262626] text-gray-100 flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-gray-100">
+              What's new in v{updateState.appResult?.latest_version}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Changelog
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto pr-2">
+            <pre className="text-sm text-gray-300 whitespace-pre-wrap break-words font-sans">
+              {updateState.appResult?.changelog}
+            </pre>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Dialog>
   );
 }
