@@ -635,6 +635,7 @@ func (u *Updater) LaunchInstaller(installerPath string) error {
 	switch runtime.GOOS {
 	case "windows":
 		cmd = exec.Command("cmd", "/c", "start", "", installerPath)
+		hideWindow(cmd)
 	case "darwin":
 		cmd = exec.Command("open", installerPath)
 	default:

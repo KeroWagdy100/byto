@@ -98,6 +98,10 @@ export function ShowInFolder(arg1) {
   return window['go']['main']['App']['ShowInFolder'](arg1);
 }
 
+export function ShutDown() {
+  return window['go']['main']['App']['ShutDown']();
+}
+
 export function StartDownloads() {
   return window['go']['main']['App']['StartDownloads']();
 }

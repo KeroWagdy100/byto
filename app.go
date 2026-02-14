@@ -499,7 +499,13 @@ func (a *App) DownloadAppUpdate(downloadURL string) (string, error) {
 
 func (a *App) LaunchInstaller(installerPath string) error {
 	log.Printf("Launching installer: %s", installerPath)
-	return a.updater.LaunchInstaller(installerPath)
+	err := a.updater.LaunchInstaller(installerPath)
+	if err != nil {
+		log.Printf("Failed to launch installer: %v", err)
+		return err
+	}
+	a.ShutDown()
+	return nil
 }
 
 func (a *App) PerformFullUpdate() map[string]interface{} {
@@ -563,4 +569,9 @@ func (a *App) DownloadFfmpeg() error {
 	}
 	log.Println("ffmpeg downloaded successfully")
 	return nil
+}
+
+func (a *App) ShutDown() {
+	log.Println("Shutting down Byto App")
+	runtime.Quit(a.ctx)
 }

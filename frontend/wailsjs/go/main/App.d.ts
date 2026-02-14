@@ -51,6 +51,8 @@ export function SelectDownloadFolderWithDefault(arg1:string):Promise<string>;
 
 export function ShowInFolder(arg1:string):Promise<void>;
 
+export function ShutDown():Promise<void>;
+
 export function StartDownloads():Promise<void>;
 
 export function StartSingleDownload(arg1:string):Promise<void>;
