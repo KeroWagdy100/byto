@@ -9,10 +9,6 @@ import (
 	"time"
 )
 
-// ===========================================================================
-// AppendLog
-// ===========================================================================
-
 func TestAppendLog_SingleEntry(t *testing.T) {
 	m := &domain.Media{ID: "1"}
 	m.AppendLog("line one")
@@ -136,10 +132,6 @@ func TestSetTitle_NoCallbackNoPanic(t *testing.T) {
 	m.SetTitle("safe")
 }
 
-// ===========================================================================
-// UpdateProgress
-// ===========================================================================
-
 func TestUpdateProgress_SetsValues(t *testing.T) {
 	m := &domain.Media{ID: "1"}
 	m.UpdateProgress(500, 1000, 50)
@@ -213,10 +205,6 @@ func TestUpdateProgress_OverwritesPrevious(t *testing.T) {
 	}
 }
 
-// ===========================================================================
-// SetStatus
-// ===========================================================================
-
 func TestSetStatus_AllStatuses(t *testing.T) {
 	statuses := []domain.DownloadStatus{
 		domain.Pending,
@@ -276,10 +264,6 @@ func TestSetStatus_TransitionSequence(t *testing.T) {
 	}
 }
 
-// ===========================================================================
-// Cancel
-// ===========================================================================
-
 func TestCancel_WithCancelFunc(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &domain.Media{
@@ -309,10 +293,6 @@ func TestCancel_DoubleCancel_NoPanic(t *testing.T) {
 	m.Cancel()
 	m.Cancel() // second call should not panic
 }
-
-// ===========================================================================
-// Concurrent access safety
-// ===========================================================================
 
 func TestMedia_ConcurrentAppendLog(t *testing.T) {
 	m := &domain.Media{ID: "1"}
@@ -414,10 +394,6 @@ func TestMedia_ConcurrentMixedOperations(t *testing.T) {
 	wg.Wait()
 }
 
-// ===========================================================================
-// Zero / default Media
-// ===========================================================================
-
 func TestMedia_ZeroValue_SafeOperations(t *testing.T) {
 	var m domain.Media
 	// All operations on zero-value Media should not panic
@@ -440,10 +416,6 @@ func TestMedia_ProgressLogsInitiallyEmpty(t *testing.T) {
 		t.Errorf("expected 0 downloaded bytes, got %d", m.Progress.DownloadedBytes)
 	}
 }
-
-// ===========================================================================
-// Enums
-// ===========================================================================
 
 func TestVideoQuality_Values(t *testing.T) {
 	if domain.Quality360p != 0 {
