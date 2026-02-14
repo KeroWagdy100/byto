@@ -248,7 +248,7 @@ func decompressXZ(r io.Reader) (io.Reader, error) {
 	return xz, nil
 }
 
-const AppVersion = "1.1.0"
+const AppVersion = "1.1.1"
 
 const (
 	GitHubOwner     = "OmarNaru1110"
