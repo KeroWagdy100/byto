@@ -46,22 +46,25 @@ func (u *Updater) GetFfmpegPath() string {
 func (u *Updater) CheckFfmpeg() FfmpegStatus {
 	bundledPath := u.GetFfmpegPath()
 	if _, err := os.Stat(bundledPath); err == nil {
-		version := u.getFfmpegVersion(bundledPath)
-		return FfmpegStatus{
-			Installed: true,
-			Path:      bundledPath,
-			Version:   version,
+		if version, err := u.getFfmpegVersion(bundledPath); err == nil {
+			return FfmpegStatus{
+				Installed: true,
+				Path:      bundledPath,
+				Version:   version,
+			}
 		}
 	}
 	// global check
 	globalPath, err := exec.LookPath("ffmpeg")
 	if err == nil {
-		version := u.getFfmpegVersion(globalPath)
-		return FfmpegStatus{
-			Installed: true,
-			Path:      globalPath,
-			Version:   version,
+		if version, err := u.getFfmpegVersion(globalPath); err == nil {
+			return FfmpegStatus{
+				Installed: true,
+				Path:      globalPath,
+				Version:   version,
+			}
 		}
+
 	}
 	return FfmpegStatus{
 		Installed: false,
@@ -70,22 +73,22 @@ func (u *Updater) CheckFfmpeg() FfmpegStatus {
 	}
 }
 
-func (u *Updater) getFfmpegVersion(path string) string {
+func (u *Updater) getFfmpegVersion(path string) (string, error) {
 	cmd := exec.Command(path, "-version")
 	hideWindow(cmd)
 	output, err := cmd.Output()
 	if err != nil {
-		return "unknown"
+		return "unknown", err
 	}
 	lines := strings.SplitN(string(output), "\n", 2)
 	if len(lines) > 0 {
 		// Example: ffmpeg version 6.1.1 ...
 		fields := strings.Fields(lines[0])
 		if len(fields) >= 3 {
-			return fields[2]
+			return fields[2], nil
 		}
 	}
-	return "unknown"
+	return "unknown", nil
 }
 
 func (u *Updater) DownloadFfmpeg(progressCallback func(downloaded, total int64)) error {
@@ -334,22 +337,24 @@ func (u *Updater) GetYtDlpPath() string {
 func (u *Updater) CheckYtDlp() YtDlpStatus {
 	bundledPath := u.GetYtDlpPath()
 	if _, err := os.Stat(bundledPath); err == nil {
-		version := u.getYtDlpVersion(bundledPath)
-		return YtDlpStatus{
-			Installed: true,
-			Path:      bundledPath,
-			Version:   version,
+		if version, err := u.getYtDlpVersion(bundledPath); err == nil {
+			return YtDlpStatus{
+				Installed: true,
+				Path:      bundledPath,
+				Version:   version,
+			}
 		}
 	}
 
 	// global check
 	globalPath, err := exec.LookPath("yt-dlp")
 	if err == nil {
-		version := u.getYtDlpVersion(globalPath)
-		return YtDlpStatus{
-			Installed: true,
-			Path:      globalPath,
-			Version:   version,
+		if version, err := u.getYtDlpVersion(globalPath); err == nil {
+			return YtDlpStatus{
+				Installed: true,
+				Path:      globalPath,
+				Version:   version,
+			}
 		}
 	}
 
@@ -360,14 +365,14 @@ func (u *Updater) CheckYtDlp() YtDlpStatus {
 	}
 }
 
-func (u *Updater) getYtDlpVersion(path string) string {
+func (u *Updater) getYtDlpVersion(path string) (string, error) {
 	cmd := exec.Command(path, "--version")
 	hideWindow(cmd)
 	output, err := cmd.Output()
 	if err != nil {
-		return "unknown"
+		return "unknown", err
 	}
-	return strings.TrimSpace(string(output))
+	return strings.TrimSpace(string(output)), nil
 }
 
 func (u *Updater) DownloadYtDlp(progressCallback func(downloaded, total int64)) error {
