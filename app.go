@@ -422,6 +422,13 @@ func (a *App) UpdateYTDLP() updater.UpdateResult {
 	return result
 }
 
+func (a *App) CheckYtDlpUpdate() updater.UpdateResult {
+	log.Println("Checking for yt-dlp updates...")
+	result := a.updater.CheckYtDlpUpdate()
+	log.Printf("yt-dlp update check: hasUpdate=%v, current=%s, latest=%s", result.HasUpdate, result.CurrentVersion, result.LatestVersion)
+	return result
+}
+
 func (a *App) CheckYtDlp() updater.YtDlpStatus {
 	log.Println("Checking yt-dlp installation...")
 	status := a.updater.CheckYtDlp()

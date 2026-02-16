@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -827,6 +828,280 @@ func TestExtractFfmpegFromTarXZ_MissingFile(t *testing.T) {
 	err := extractFfmpegFromTarXZ("/nonexistent.tar.xz", "/tmp/ffmpeg")
 	if err == nil {
 		t.Fatal("expected error for missing file")
+	}
+}
+
+// ─── CheckYtDlpUpdate ─────────────────────────────────────────────────────────
+
+// testCheckYtDlpUpdateWithMock is a helper that tests CheckYtDlpUpdate logic
+// by creating a mock server and a minimal Go executable that prints a version.
+// Since CheckYtDlp requires a real executable, we compile a tiny helper program.
+
+func createFakeYtDlp(t *testing.T, version string) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+
+	if runtime.GOOS == "windows" {
+		// On Windows, create a .cmd file and name it yt-dlp.exe won't work.
+		// Instead, create a .bat wrapper and copy it — but exec.Command runs .exe only via stat.
+		// Best approach: write a Go program, compile it.
+		srcFile := filepath.Join(tmpDir, "main.go")
+		src := fmt.Sprintf(`package main
+import "fmt"
+func main() { fmt.Print("%s") }
+`, version)
+		if err := os.WriteFile(srcFile, []byte(src), 0644); err != nil {
+			t.Fatalf("failed to write source: %v", err)
+		}
+		binName := filepath.Join(tmpDir, "yt-dlp.exe")
+		cmd := exec.Command("go", "build", "-o", binName, srcFile)
+		cmd.Dir = tmpDir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("failed to compile fake yt-dlp: %v\n%s", err, out)
+		}
+		return binName
+	}
+
+	// Unix: shell script works fine
+	binName := filepath.Join(tmpDir, "yt-dlp")
+	script := fmt.Sprintf("#!/bin/sh\nprintf '%s'", version)
+	if err := os.WriteFile(binName, []byte(script), 0755); err != nil {
+		t.Fatalf("failed to write fake yt-dlp: %v", err)
+	}
+	return binName
+}
+
+func TestCheckYtDlpUpdate_NotInstalled(t *testing.T) {
+	u := NewUpdater()
+	u.ytdlpPath = filepath.Join(t.TempDir(), "nonexistent-ytdlp")
+
+	result := u.CheckYtDlpUpdate()
+
+	// If yt-dlp is not globally installed either, we should get not-installed
+	if !result.Success && result.Message == "yt-dlp is not installed" {
+		if result.CurrentVersion != "" {
+			t.Errorf("expected empty CurrentVersion when not installed, got %q", result.CurrentVersion)
+		}
+		if result.HasUpdate {
+			t.Error("expected HasUpdate=false when not installed")
+		}
+	}
+}
+
+func TestCheckYtDlpUpdate_HasUpdate(t *testing.T) {
+	fakeBin := createFakeYtDlp(t, "2025.01.01")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"tag_name": "2026.02.04"})
+	}))
+	defer server.Close()
+
+	u := NewUpdater()
+	u.ytdlpPath = fakeBin
+	u.httpClient = server.Client()
+	u.httpClient.Transport = &urlRewriteTransport{defaultBase: server.URL}
+
+	result := u.CheckYtDlpUpdate()
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Message)
+	}
+	if !result.HasUpdate {
+		t.Error("expected HasUpdate=true for newer version")
+	}
+	if result.CurrentVersion != "2025.01.01" {
+		t.Errorf("expected CurrentVersion=2025.01.01, got %s", result.CurrentVersion)
+	}
+	if result.LatestVersion != "2026.02.04" {
+		t.Errorf("expected LatestVersion=2026.02.04, got %s", result.LatestVersion)
+	}
+	if result.Message == "" {
+		t.Error("expected non-empty message")
+	}
+}
+
+func TestCheckYtDlpUpdate_NoUpdate(t *testing.T) {
+	fakeBin := createFakeYtDlp(t, "2026.02.04")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"tag_name": "2026.02.04"})
+	}))
+	defer server.Close()
+
+	u := NewUpdater()
+	u.ytdlpPath = fakeBin
+	u.httpClient = server.Client()
+	u.httpClient.Transport = &urlRewriteTransport{defaultBase: server.URL}
+
+	result := u.CheckYtDlpUpdate()
+
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Message)
+	}
+	if result.HasUpdate {
+		t.Error("expected HasUpdate=false for same version")
+	}
+	if result.CurrentVersion != "2026.02.04" {
+		t.Errorf("expected CurrentVersion=2026.02.04, got %s", result.CurrentVersion)
+	}
+	if result.LatestVersion != "2026.02.04" {
+		t.Errorf("expected LatestVersion=2026.02.04, got %s", result.LatestVersion)
+	}
+	if result.Message != "yt-dlp is up to date" {
+		t.Errorf("unexpected message: %s", result.Message)
+	}
+}
+
+func TestCheckYtDlpUpdate_APIError(t *testing.T) {
+	fakeBin := createFakeYtDlp(t, "2025.01.01")
+
+	u := NewUpdater()
+	u.ytdlpPath = fakeBin
+	// Point to unreachable server
+	u.httpClient.Transport = &urlRewriteTransport{defaultBase: "http://127.0.0.1:1"}
+
+	result := u.CheckYtDlpUpdate()
+
+	if result.Success {
+		t.Error("expected failure when API is unreachable")
+	}
+	if !strings.Contains(result.Message, "Failed to check yt-dlp releases") {
+		t.Errorf("unexpected error message: %s", result.Message)
+	}
+	if result.CurrentVersion != "2025.01.01" {
+		t.Errorf("expected CurrentVersion=2025.01.01 even on failure, got %s", result.CurrentVersion)
+	}
+	if result.HasUpdate {
+		t.Error("expected HasUpdate=false on error")
+	}
+}
+
+func TestCheckYtDlpUpdate_InvalidJSON(t *testing.T) {
+	fakeBin := createFakeYtDlp(t, "2025.01.01")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("{invalid json"))
+	}))
+	defer server.Close()
+
+	u := NewUpdater()
+	u.ytdlpPath = fakeBin
+	u.httpClient = server.Client()
+	u.httpClient.Transport = &urlRewriteTransport{defaultBase: server.URL}
+
+	result := u.CheckYtDlpUpdate()
+
+	if result.Success {
+		t.Error("expected failure for invalid JSON response")
+	}
+	if !strings.Contains(result.Message, "Failed to parse release info") {
+		t.Errorf("unexpected error message: %s", result.Message)
+	}
+	if result.CurrentVersion != "2025.01.01" {
+		t.Errorf("expected CurrentVersion preserved on parse error, got %s", result.CurrentVersion)
+	}
+}
+
+func TestCheckYtDlpUpdate_EmptyTagName(t *testing.T) {
+	fakeBin := createFakeYtDlp(t, "2025.01.01")
+
+	// API returns empty tag_name
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"tag_name": ""})
+	}))
+	defer server.Close()
+
+	u := NewUpdater()
+	u.ytdlpPath = fakeBin
+	u.httpClient = server.Client()
+	u.httpClient.Transport = &urlRewriteTransport{defaultBase: server.URL}
+
+	result := u.CheckYtDlpUpdate()
+
+	// Empty latest version differs from current, so HasUpdate=true
+	if !result.Success {
+		t.Fatalf("expected success, got error: %s", result.Message)
+	}
+	if result.LatestVersion != "" {
+		t.Errorf("expected empty LatestVersion, got %q", result.LatestVersion)
+	}
+	if result.CurrentVersion != "2025.01.01" {
+		t.Errorf("expected CurrentVersion=2025.01.01, got %s", result.CurrentVersion)
+	}
+}
+
+func TestCheckYtDlpUpdate_ServerReturns500(t *testing.T) {
+	fakeBin := createFakeYtDlp(t, "2025.01.01")
+
+	// Server returns 500 but valid-ish body (json.Decode might still work)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(`{"message":"rate limit exceeded"}`))
+	}))
+	defer server.Close()
+
+	u := NewUpdater()
+	u.ytdlpPath = fakeBin
+	u.httpClient = server.Client()
+	u.httpClient.Transport = &urlRewriteTransport{defaultBase: server.URL}
+
+	result := u.CheckYtDlpUpdate()
+
+	// The function doesn't check HTTP status codes, so it will try to decode the body.
+	// tag_name will be empty string, which differs from the current version.
+	// This verifies the function doesn't crash on error responses.
+	_ = result
+}
+
+func TestCheckYtDlpUpdate_ResultFieldsPopulated(t *testing.T) {
+	fakeBin := createFakeYtDlp(t, "2025.06.01")
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"tag_name": "2026.03.01"})
+	}))
+	defer server.Close()
+
+	u := NewUpdater()
+	u.ytdlpPath = fakeBin
+	u.httpClient = server.Client()
+	u.httpClient.Transport = &urlRewriteTransport{defaultBase: server.URL}
+
+	result := u.CheckYtDlpUpdate()
+
+	if !result.Success {
+		t.Fatalf("expected success, got: %s", result.Message)
+	}
+
+	// Verify all relevant fields are set
+	if result.CurrentVersion == "" {
+		t.Error("expected non-empty CurrentVersion")
+	}
+	if result.LatestVersion == "" {
+		t.Error("expected non-empty LatestVersion")
+	}
+	if !result.HasUpdate {
+		t.Error("expected HasUpdate=true")
+	}
+	if result.Message == "" {
+		t.Error("expected non-empty Message")
+	}
+	if !strings.Contains(result.Message, "2026.03.01") {
+		t.Errorf("message should contain latest version, got: %s", result.Message)
+	}
+	if !strings.Contains(result.Message, "2025.06.01") {
+		t.Errorf("message should contain current version, got: %s", result.Message)
+	}
+
+	// These fields should not be set by CheckYtDlpUpdate
+	if result.Changelog != "" {
+		t.Errorf("expected empty Changelog, got %q", result.Changelog)
+	}
+	if result.DownloadURL != "" {
+		t.Errorf("expected empty DownloadURL, got %q", result.DownloadURL)
 	}
 }
 

@@ -11,6 +11,8 @@ export function CheckFfmpeg():Promise<updater.FfmpegStatus>;
 
 export function CheckYtDlp():Promise<updater.YtDlpStatus>;
 
+export function CheckYtDlpUpdate():Promise<updater.UpdateResult>;
+
 export function DownloadAppUpdate(arg1:string):Promise<string>;
 
 export function DownloadFfmpeg():Promise<void>;

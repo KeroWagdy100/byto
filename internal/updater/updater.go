@@ -462,6 +462,63 @@ func (u *Updater) DownloadYtDlp(progressCallback func(downloaded, total int64)) 
 	return nil
 }
 
+func (u *Updater) CheckYtDlpUpdate() UpdateResult {
+	status := u.CheckYtDlp()
+
+	if !status.Installed {
+		return UpdateResult{
+			Success:        false,
+			Message:        "yt-dlp is not installed",
+			CurrentVersion: "",
+		}
+	}
+
+	resp, err := u.httpClient.Get(YtDlpReleaseURL)
+	if err != nil {
+		return UpdateResult{
+			Success:        false,
+			Message:        fmt.Sprintf("Failed to check yt-dlp releases: %v", err),
+			CurrentVersion: status.Version,
+		}
+	}
+	defer resp.Body.Close()
+
+	var release struct {
+		TagName string `json:"tag_name"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
+		return UpdateResult{
+			Success:        false,
+			Message:        fmt.Sprintf("Failed to parse release info: %v", err),
+			CurrentVersion: status.Version,
+		}
+	}
+
+	latestVersion := strings.TrimSpace(release.TagName)
+	currentVersion := strings.TrimSpace(status.Version)
+
+	hasUpdate := latestVersion != currentVersion
+
+	if hasUpdate {
+		return UpdateResult{
+			Success:        true,
+			Message:        fmt.Sprintf("New yt-dlp version available: %s (current: %s)", latestVersion, currentVersion),
+			CurrentVersion: currentVersion,
+			LatestVersion:  latestVersion,
+			HasUpdate:      true,
+		}
+	}
+
+	return UpdateResult{
+		Success:        true,
+		Message:        "yt-dlp is up to date",
+		CurrentVersion: currentVersion,
+		LatestVersion:  latestVersion,
+		HasUpdate:      false,
+	}
+}
+
 func (u *Updater) UpdateYTDLP() UpdateResult {
 	status := u.CheckYtDlp()
 

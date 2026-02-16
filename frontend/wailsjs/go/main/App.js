@@ -18,6 +18,10 @@ export function CheckYtDlp() {
   return window['go']['main']['App']['CheckYtDlp']();
 }
 
+export function CheckYtDlpUpdate() {
+  return window['go']['main']['App']['CheckYtDlpUpdate']();
+}
+
 export function DownloadAppUpdate(arg1) {
   return window['go']['main']['App']['DownloadAppUpdate'](arg1);
 }

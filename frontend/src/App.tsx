@@ -8,7 +8,8 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { SupportPanel } from './components/SupportPanel';
 import { DependencyCheckDialog } from './components/DependencyCheckDialog';
 import { AddMediaDialog } from './components/AddMediaDialog';
-import { GetQueue, RemoveFromQueue, StartDownloads, PauseDownloads, StartSingleDownload, PauseSingleDownload, GetSettings, UpdateSettings, SaveSettings, ShowInFolder } from '../wailsjs/go/main/App';
+import { YtDlpUpdateNotification } from './components/YtDlpUpdateNotification';
+import { GetQueue, RemoveFromQueue, StartDownloads, PauseDownloads, StartSingleDownload, PauseSingleDownload, GetSettings, UpdateSettings, SaveSettings, ShowInFolder, CheckYtDlpUpdate } from '../wailsjs/go/main/App';
 import { EventsOn, EventsOff } from '../wailsjs/runtime/runtime';
 import { domain } from '../wailsjs/go/models';
 import bytoLogo from 'figma:asset/e1c6c4d1df3cefc4435d7cc603c42e22f058f10f.png';
@@ -93,6 +94,7 @@ export default function App() {
     const [showDependencyCheck, setShowDependencyCheck] = useState(true);
     const [showAddMediaDialog, setShowAddMediaDialog] = useState(false);
     const [pendingUrl, setPendingUrl] = useState('');
+    const [ytdlpUpdate, setYtdlpUpdate] = useState<{ currentVersion: string; latestVersion: string } | null>(null);
 
     // Load initial data from backend
     useEffect(() => {
@@ -264,7 +266,20 @@ export default function App() {
         <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
             {/* Dependency Check Dialog */}
             {showDependencyCheck && (
-                <DependencyCheckDialog onClose={() => setShowDependencyCheck(false)} />
+                <DependencyCheckDialog onClose={() => {
+                    setShowDependencyCheck(false);
+                    // Check for yt-dlp updates in the background
+                    CheckYtDlpUpdate().then(result => {
+                        if (result.has_update) {
+                            setYtdlpUpdate({
+                                currentVersion: result.current_version || '',
+                                latestVersion: result.latest_version || '',
+                            });
+                        }
+                    }).catch(err => {
+                        console.error('Failed to check yt-dlp updates:', err);
+                    });
+                }} />
             )}
 
             {/* Title Bar */}
@@ -399,6 +414,15 @@ export default function App() {
                     </div>
                 </div>
             </div>
+
+            {/* yt-dlp Update Notification */}
+            {ytdlpUpdate && (
+                <YtDlpUpdateNotification
+                    currentVersion={ytdlpUpdate.currentVersion}
+                    latestVersion={ytdlpUpdate.latestVersion}
+                    onDismiss={() => setYtdlpUpdate(null)}
+                />
+            )}
         </div>
     );
 }
