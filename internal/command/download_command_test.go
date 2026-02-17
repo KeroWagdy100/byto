@@ -140,7 +140,7 @@ func TestExecute_MediaWithQualitySettings(t *testing.T) {
 
 	for _, q := range qualities {
 		t.Run("quality_"+qualityName(q), func(t *testing.T) {
-			b := builder.NewYTDLPBuilder().Quality(q).URL("http://example.com/video")
+			b := builder.NewYTDLPBuilder().Video(q).URL("http://example.com/video")
 			cmd := &command.DownloadCommand{Builder: b}
 			media := &domain.Media{URL: "http://example.com/video", Quality: q}
 			err := cmd.Execute(media)
@@ -193,7 +193,7 @@ func TestExecute_MediaWithSafeFilenames(t *testing.T) {
 
 func TestExecute_FullBuilderChain(t *testing.T) {
 	b := builder.NewYTDLPBuilder().
-		Quality(domain.Quality1080p).
+		Video(domain.Quality1080p).
 		DownloadPath("/tmp/downloads").
 		SafeFilenames().
 		URL("http://example.com/video")

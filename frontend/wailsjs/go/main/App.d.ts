@@ -3,7 +3,7 @@
 import {updater} from '../models';
 import {domain} from '../models';
 
-export function AddToQueue(arg1:string,arg2:string,arg3:string):Promise<string>;
+export function AddToQueue(arg1:string,arg2:string,arg3:string,arg4:boolean):Promise<string>;
 
 export function CheckAppUpdate():Promise<updater.UpdateResult>;
 
@@ -59,7 +59,7 @@ export function StartDownloads():Promise<void>;
 
 export function StartSingleDownload(arg1:string):Promise<void>;
 
-export function UpdateMediaDefaults(arg1:string,arg2:string):Promise<void>;
+export function UpdateMediaDefaults(arg1:string,arg2:string,arg3:boolean):Promise<void>;
 
 export function UpdateSettings(arg1:number):Promise<void>;
 

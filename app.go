@@ -126,7 +126,7 @@ func (a *App) GetMediaDefaults() *domain.MediaDefaults {
 }
 
 // UpdateMediaDefaults updates the media defaults for new items
-func (a *App) UpdateMediaDefaults(quality string, downloadPath string) {
+func (a *App) UpdateMediaDefaults(quality string, downloadPath string, onlyAudio bool) {
 	var q domain.VideoQuality
 	switch quality {
 	case "360p":
@@ -144,8 +144,8 @@ func (a *App) UpdateMediaDefaults(quality string, downloadPath string) {
 	default:
 		q = domain.Quality1080p
 	}
-	a.mediaDefaults.Update(q, downloadPath)
-	log.Printf("Media defaults updated in memory: quality=%s, path=%s", quality, downloadPath)
+	a.mediaDefaults.Update(q, downloadPath, onlyAudio)
+	log.Printf("Media defaults updated in memory: quality=%s, path=%s, onlyAudio=%v", quality, downloadPath, onlyAudio)
 }
 
 // SaveMediaDefaults saves the media defaults to file
@@ -154,7 +154,7 @@ func (a *App) SaveMediaDefaults() error {
 	return a.mediaDefaults.Save()
 }
 
-func (a *App) AddToQueue(url string, quality string, customPath string) string {
+func (a *App) AddToQueue(url string, quality string, customPath string, onlyAudio bool) string {
 	id := uuid.New().String()
 	log.Printf("Adding to queue: %s with id: %s", url, id)
 
@@ -183,12 +183,13 @@ func (a *App) AddToQueue(url string, quality string, customPath string) string {
 	}
 
 	a.queue.Add(&domain.Media{
-		ID:       id,
-		URL:      url,
-		Title:    "Pending...",
-		FilePath: filePath,
-		Quality:  q,
-		Status:   domain.Pending,
+		ID:        id,
+		URL:       url,
+		Title:     "Pending...",
+		FilePath:  filePath,
+		Quality:   q,
+		OnlyAudio: onlyAudio,
+		Status:    domain.Pending,
 		Progress: domain.DownloadProgress{
 			Percentage:      0,
 			DownloadedBytes: 0,
@@ -283,9 +284,13 @@ func (a *App) StartDownloads() {
 				// Initialize builder - use media's own FilePath and Quality
 				b := builder.NewYTDLPBuilder().
 					URL(m.URL).
-					Quality(m.Quality).
 					DownloadPath(m.FilePath).
 					SafeFilenames()
+				if m.OnlyAudio {
+					b = b.Audio()
+				} else {
+					b = b.Video(m.Quality)
+				}
 
 				cmd := &command.DownloadCommand{
 					Builder: b,
@@ -375,9 +380,13 @@ func (a *App) StartSingleDownload(id string) {
 
 		b := builder.NewYTDLPBuilder().
 			URL(media.URL).
-			Quality(media.Quality).
 			DownloadPath(media.FilePath).
 			SafeFilenames()
+		if media.OnlyAudio {
+			b = b.Audio()
+		} else {
+			b = b.Video(media.Quality)
+		}
 
 		cmd := &command.DownloadCommand{
 			Builder: b,

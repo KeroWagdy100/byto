@@ -23,6 +23,7 @@ export namespace domain {
 	    url: string;
 	    file_path: string;
 	    quality: number;
+	    only_audio: boolean;
 	    status: number;
 	    progress: DownloadProgress;
 	
@@ -38,6 +39,7 @@ export namespace domain {
 	        this.url = source["url"];
 	        this.file_path = source["file_path"];
 	        this.quality = source["quality"];
+	        this.only_audio = source["only_audio"];
 	        this.status = source["status"];
 	        this.progress = this.convertValues(source["progress"], DownloadProgress);
 	    }
@@ -63,6 +65,7 @@ export namespace domain {
 	export class MediaDefaults {
 	    quality: number;
 	    download_path: string;
+	    only_audio: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new MediaDefaults(source);
@@ -72,6 +75,7 @@ export namespace domain {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.quality = source["quality"];
 	        this.download_path = source["download_path"];
+	        this.only_audio = source["only_audio"];
 	    }
 	}
 	export class Setting {

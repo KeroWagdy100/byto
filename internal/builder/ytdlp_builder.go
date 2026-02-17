@@ -58,7 +58,7 @@ func (y *YTDLPBuilder) Newline() *YTDLPBuilder {
 	return y
 }
 
-func (y *YTDLPBuilder) Quality(quality domain.VideoQuality) *YTDLPBuilder {
+func (y *YTDLPBuilder) Video(quality domain.VideoQuality) *YTDLPBuilder {
 	// Use format selection with fallback to best available
 	// "bestvideo[height<=X]+bestaudio/best[height<=X]/best" means:
 	// 1. Try best video up to X height + best audio
@@ -80,6 +80,11 @@ func (y *YTDLPBuilder) Quality(quality domain.VideoQuality) *YTDLPBuilder {
 	default:
 		y.args = append(y.args, "-f", "bestvideo+bestaudio/best")
 	}
+	return y
+}
+
+func (y *YTDLPBuilder) Audio() *YTDLPBuilder {
+	y.args = append(y.args, "-f", "bestaudio/best")
 	return y
 }
 

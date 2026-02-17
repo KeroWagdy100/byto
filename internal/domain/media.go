@@ -12,6 +12,7 @@ type Media struct {
 	URL        string           `json:"url"`
 	FilePath   string           `json:"file_path"`
 	Quality    VideoQuality     `json:"quality"`
+	OnlyAudio  bool             `json:"only_audio"`
 	Status     DownloadStatus   `json:"status"`
 	Progress   DownloadProgress `json:"progress"`
 	mu         sync.Mutex

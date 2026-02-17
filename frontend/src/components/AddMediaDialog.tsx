@@ -24,6 +24,7 @@ interface AddMediaDialogProps {
 export function AddMediaDialog({ url, open, onClose, onSuccess }: AddMediaDialogProps) {
     const [quality, setQuality] = useState('1080p');
     const [downloadPath, setDownloadPath] = useState('');
+    const [onlyAudio, setOnlyAudio] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
     // Load media defaults when dialog opens
@@ -40,6 +41,7 @@ export function AddMediaDialog({ url, open, onClose, onSuccess }: AddMediaDialog
             if (defaults) {
                 setQuality(qualityFromBackend[defaults.quality] || '1080p');
                 setDownloadPath(defaults.download_path || '');
+                setOnlyAudio(defaults.only_audio || false);
             }
         } catch (error) {
             console.error('Error loading media defaults:', error);
@@ -62,10 +64,10 @@ export function AddMediaDialog({ url, open, onClose, onSuccess }: AddMediaDialog
     const handleAdd = async () => {
         try {
             // Add to queue with selected quality and path
-            const id = await AddToQueue(url, quality, downloadPath);
+            const id = await AddToQueue(url, quality, downloadPath, onlyAudio);
 
             // Save these settings as defaults for next time
-            await UpdateMediaDefaults(quality, downloadPath);
+            await UpdateMediaDefaults(quality, downloadPath, onlyAudio);
             await SaveMediaDefaults();
 
             onSuccess(id, quality, downloadPath);
@@ -100,7 +102,8 @@ export function AddMediaDialog({ url, open, onClose, onSuccess }: AddMediaDialog
                             <select
                                 value={quality}
                                 onChange={(e) => setQuality(e.target.value)}
-                                className="w-full px-3 py-2 bg-[#1f1f1f] border border-[#262626] rounded text-sm text-gray-100"
+                                disabled={onlyAudio}
+                                className={`w-full px-3 py-2 bg-[#1f1f1f] border border-[#262626] rounded text-sm text-gray-100 ${onlyAudio ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
                                 <option value="360p">360p</option>
                                 <option value="480p">480p</option>
@@ -109,6 +112,20 @@ export function AddMediaDialog({ url, open, onClose, onSuccess }: AddMediaDialog
                                 <option value="1440p">1440p (2K)</option>
                                 <option value="2160p">2160p (4K)</option>
                             </select>
+                        </div>
+
+                        {/* Audio Only Checkbox */}
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="onlyAudio"
+                                checked={onlyAudio}
+                                onChange={(e) => setOnlyAudio(e.target.checked)}
+                                className="w-4 h-4 rounded border-[#262626] bg-[#1f1f1f] accent-blue-600 cursor-pointer"
+                            />
+                            <label htmlFor="onlyAudio" className="text-gray-300 text-sm cursor-pointer select-none">
+                                Download as audio
+                            </label>
                         </div>
 
                         {/* Download Path */}

@@ -12,6 +12,7 @@ import (
 type MediaDefaults struct {
 	Quality      VideoQuality `json:"quality"`
 	DownloadPath string       `json:"download_path"`
+	OnlyAudio    bool         `json:"only_audio"`
 }
 
 func getMediaDefaultsFilePath() string {
@@ -79,7 +80,8 @@ func (m *MediaDefaults) Save() error {
 	return nil
 }
 
-func (m *MediaDefaults) Update(quality VideoQuality, downloadPath string) {
+func (m *MediaDefaults) Update(quality VideoQuality, downloadPath string, onlyAudio bool) {
 	m.Quality = quality
 	m.DownloadPath = downloadPath
+	m.OnlyAudio = onlyAudio
 }

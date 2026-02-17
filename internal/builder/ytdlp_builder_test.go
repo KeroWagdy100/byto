@@ -95,7 +95,7 @@ func TestQuality_AllLevels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.contains+"p", func(t *testing.T) {
-			args := builder.NewYTDLPBuilder().Quality(tt.quality).Build()
+			args := builder.NewYTDLPBuilder().Video(tt.quality).Build()
 			if len(args) != 2 {
 				t.Fatalf("expected 2 args, got %d: %v", len(args), args)
 			}
@@ -109,9 +109,9 @@ func TestQuality_AllLevels(t *testing.T) {
 	}
 }
 
-func TestQuality_DefaultFallback(t *testing.T) {
+func TestVideo_DefaultFallback(t *testing.T) {
 	// An invalid quality value should produce a "best" fallback
-	args := builder.NewYTDLPBuilder().Quality(domain.VideoQuality(99)).Build()
+	args := builder.NewYTDLPBuilder().Video(domain.VideoQuality(99)).Build()
 	if len(args) != 2 {
 		t.Fatalf("expected 2 args, got %d: %v", len(args), args)
 	}
@@ -120,9 +120,57 @@ func TestQuality_DefaultFallback(t *testing.T) {
 	}
 }
 
-func TestQuality_FormatContainsFallback(t *testing.T) {
+func TestVideo_FormatContainsFallback(t *testing.T) {
 	// All quality levels should contain /best as a final fallback
-	args := builder.NewYTDLPBuilder().Quality(domain.Quality720p).Build()
+	args := builder.NewYTDLPBuilder().Video(domain.Quality720p).Build()
+	if !strings.HasSuffix(args[1], "/best") {
+		t.Errorf("expected format to end with /best fallback, got %s", args[1])
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Audio
+// ---------------------------------------------------------------------------
+
+func TestAudio_AddsFormatFlag(t *testing.T) {
+	args := builder.NewYTDLPBuilder().Audio().Build()
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d: %v", len(args), args)
+	}
+	if args[0] != "-f" {
+		t.Errorf("expected -f flag, got %s", args[0])
+	}
+	if args[1] != "bestaudio/best" {
+		t.Errorf("expected bestaudio/best, got %s", args[1])
+	}
+}
+
+func TestAudio_ReturnsSameBuilder(t *testing.T) {
+	b := builder.NewYTDLPBuilder()
+	b2 := b.Audio()
+	if b != b2 {
+		t.Error("Audio did not return same builder")
+	}
+}
+
+func TestAudio_ChainsWithOtherMethods(t *testing.T) {
+	args := builder.NewYTDLPBuilder().
+		Audio().
+		DownloadPath("/tmp").
+		URL("https://example.com/audio").
+		Build()
+
+	// -f bestaudio/best -o /tmp/%(title).100s.%(ext)s https://example.com/audio
+	if len(args) != 5 {
+		t.Fatalf("expected 5 args, got %d: %v", len(args), args)
+	}
+	if args[0] != "-f" || args[1] != "bestaudio/best" {
+		t.Errorf("expected -f bestaudio/best at start, got %s %s", args[0], args[1])
+	}
+}
+
+func TestAudio_ContainsBestFallback(t *testing.T) {
+	args := builder.NewYTDLPBuilder().Audio().Build()
 	if !strings.HasSuffix(args[1], "/best") {
 		t.Errorf("expected format to end with /best fallback, got %s", args[1])
 	}
@@ -231,7 +279,7 @@ func TestChaining_MultipleMethods(t *testing.T) {
 	args := builder.NewYTDLPBuilder().
 		ProgressTemplate("TPL").
 		Newline().
-		Quality(domain.Quality720p).
+		Video(domain.Quality720p).
 		DownloadPath("/tmp").
 		SafeFilenames().
 		URL("http://example.com").
@@ -257,9 +305,9 @@ func TestChaining_ReturnsSameBuilder(t *testing.T) {
 	if b != b3 {
 		t.Error("Newline did not return same builder")
 	}
-	b4 := b.Quality(domain.Quality720p)
+	b4 := b.Video(domain.Quality720p)
 	if b != b4 {
-		t.Error("Quality did not return same builder")
+		t.Error("Video did not return same builder")
 	}
 	b5 := b.DownloadPath("/tmp")
 	if b != b5 {
