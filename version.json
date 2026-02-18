@@ -1,9 +1,9 @@
 {
-  "version": "1.1.2",
-  "release_date": "2026-02-14",
-  "changelog": "Bug Fixes:\n- Fixed changelog text overflowing the update dialog when content is too long\n- Fixed app update installer not behaving correctly after download\n\nEnhancements:\n- Installer now offers to launch Byto immediately after setup\n- Simplified default installation path",
+  "version": "2.0.0",
+  "release_date": "2026-02-18",
+  "changelog": "Bug Fixes:\n- Added verification and repair for ffmpeg and yt-dlp dependencies in the updater\n- Improved application options to ensure better context menu handling\n\nEnhancements:\n- Added automatic yt-dlp update checking with user notification\n- Added @types/react to enhance TypeScript support in the frontend\n\nFeatures:\n- Introduced support for audio-only downloads with related improvements",
   "downloads": {
-    "windows": "https://github.com/OmarNaru1110/byto/releases/download/v1.1.2/byto-amd64-installer.exe",
+    "windows": "https://github.com/OmarNaru1110/byto/releases/download/v2.0.0/byto-amd64-installer.exe",
     "darwin": "",
     "linux": ""
   },
