@@ -449,3 +449,180 @@ func TestDownloadStatus_Sequence(t *testing.T) {
 		}
 	}
 }
+
+// ===========================================================================
+// PlaylistSelection.Validate
+// ===========================================================================
+
+// --- SelectionAll ----------------------------------------------------------
+
+func TestPlaylistSelection_Validate_All_ReturnsNil(t *testing.T) {
+	ps := domain.PlaylistSelection{Type: domain.SelectionAll}
+	if err := ps.Validate(); err != nil {
+		t.Errorf("expected nil error for SelectionAll, got: %v", err)
+	}
+}
+
+// --- Unknown / empty type --------------------------------------------------
+
+func TestPlaylistSelection_Validate_EmptyType_ReturnsNil(t *testing.T) {
+	ps := domain.PlaylistSelection{} // zero value: Type == ""
+	if err := ps.Validate(); err != nil {
+		t.Errorf("expected nil error for empty type, got: %v", err)
+	}
+}
+
+func TestPlaylistSelection_Validate_UnknownType_ReturnsNil(t *testing.T) {
+	ps := domain.PlaylistSelection{Type: domain.PlaylistSelectionType("unknown")}
+	if err := ps.Validate(); err != nil {
+		t.Errorf("expected nil error for unknown type, got: %v", err)
+	}
+}
+
+// --- SelectionRange --------------------------------------------------------
+
+func TestPlaylistSelection_Validate_Range_Valid(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 1,
+		EndIndex:   5,
+	}
+	if err := ps.Validate(); err != nil {
+		t.Errorf("expected no error for valid range [1,5], got: %v", err)
+	}
+}
+
+func TestPlaylistSelection_Validate_Range_EqualStartEnd_Valid(t *testing.T) {
+	// StartIndex == EndIndex is a single-item range, should be valid
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 3,
+		EndIndex:   3,
+	}
+	if err := ps.Validate(); err != nil {
+		t.Errorf("expected no error for equal start/end [3,3], got: %v", err)
+	}
+}
+
+func TestPlaylistSelection_Validate_Range_StartIndexZero_ReturnsError(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 0,
+		EndIndex:   5,
+	}
+	if err := ps.Validate(); err == nil {
+		t.Error("expected error when StartIndex is 0, got nil")
+	}
+}
+
+func TestPlaylistSelection_Validate_Range_NegativeStartIndex_ReturnsError(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: -1,
+		EndIndex:   5,
+	}
+	if err := ps.Validate(); err == nil {
+		t.Error("expected error when StartIndex is negative, got nil")
+	}
+}
+
+func TestPlaylistSelection_Validate_Range_EndIndexLessThanStart_ReturnsError(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 5,
+		EndIndex:   3,
+	}
+	if err := ps.Validate(); err == nil {
+		t.Error("expected error when EndIndex < StartIndex, got nil")
+	}
+}
+
+func TestPlaylistSelection_Validate_Range_BothZero_ReturnsError(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 0,
+		EndIndex:   0,
+	}
+	if err := ps.Validate(); err == nil {
+		t.Error("expected error for range [0,0], got nil")
+	}
+}
+
+func TestPlaylistSelection_Validate_Range_ErrorMessageContainsIndexes(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 0,
+		EndIndex:   0,
+	}
+	err := ps.Validate()
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	msg := err.Error()
+	for _, keyword := range []string{"invalid playlist range", "0", "0"} {
+		if !containsSubstring(msg, keyword) {
+			t.Errorf("expected error message to contain %q, got: %q", keyword, msg)
+		}
+	}
+}
+
+// --- SelectionItems --------------------------------------------------------
+
+func TestPlaylistSelection_Validate_Items_NonEmpty_Valid(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:  domain.SelectionItems,
+		Items: "1,3,5",
+	}
+	if err := ps.Validate(); err != nil {
+		t.Errorf("expected no error for non-empty items, got: %v", err)
+	}
+}
+
+func TestPlaylistSelection_Validate_Items_SingleItem_Valid(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:  domain.SelectionItems,
+		Items: "7",
+	}
+	if err := ps.Validate(); err != nil {
+		t.Errorf("expected no error for single item, got: %v", err)
+	}
+}
+
+func TestPlaylistSelection_Validate_Items_Empty_ReturnsError(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:  domain.SelectionItems,
+		Items: "",
+	}
+	if err := ps.Validate(); err == nil {
+		t.Error("expected error for empty items list, got nil")
+	}
+}
+
+func TestPlaylistSelection_Validate_Items_ErrorMessageDescriptive(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:  domain.SelectionItems,
+		Items: "",
+	}
+	err := ps.Validate()
+	if err == nil {
+		t.Fatal("expected an error, got nil")
+	}
+	const want = "items selection type requires a non-empty items list"
+	if !containsSubstring(err.Error(), want) {
+		t.Errorf("expected error message to contain %q, got: %q", want, err.Error())
+	}
+}
+
+// --- helpers ---------------------------------------------------------------
+
+func containsSubstring(s, sub string) bool {
+	return len(s) >= len(sub) && (s == sub || len(sub) == 0 ||
+		(func() bool {
+			for i := 0; i <= len(s)-len(sub); i++ {
+				if s[i:i+len(sub)] == sub {
+					return true
+				}
+			}
+			return false
+		})())
+}

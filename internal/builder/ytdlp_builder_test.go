@@ -388,3 +388,224 @@ func TestMultipleBuilders_Independent(t *testing.T) {
 		t.Error("independent builders should have different URLs")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Playlist
+// ---------------------------------------------------------------------------
+
+// --- SelectionAll -----------------------------------------------------------
+
+func TestPlaylist_SelectionAll_NoArgsAdded(t *testing.T) {
+	ps := domain.PlaylistSelection{Type: domain.SelectionAll}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	// SelectionAll passes Validate but hits no switch case → no extra args
+	if len(args) != 0 {
+		t.Errorf("expected no args for SelectionAll, got %v", args)
+	}
+}
+
+// --- Unknown / empty type ---------------------------------------------------
+
+func TestPlaylist_EmptyType_NoArgsAdded(t *testing.T) {
+	ps := domain.PlaylistSelection{} // zero value
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if len(args) != 0 {
+		t.Errorf("expected no args for empty type, got %v", args)
+	}
+}
+
+func TestPlaylist_UnknownType_NoArgsAdded(t *testing.T) {
+	ps := domain.PlaylistSelection{Type: domain.PlaylistSelectionType("custom")}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if len(args) != 0 {
+		t.Errorf("expected no args for unknown type, got %v", args)
+	}
+}
+
+// --- SelectionRange (valid) -------------------------------------------------
+
+func TestPlaylist_Range_Valid_AddsPlaylistItemsFlag(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 2,
+		EndIndex:   7,
+	}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args for valid range, got %d: %v", len(args), args)
+	}
+	if args[0] != "--playlist-items" {
+		t.Errorf("expected --playlist-items flag, got %q", args[0])
+	}
+}
+
+func TestPlaylist_Range_Valid_FormatsCorrectly(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 2,
+		EndIndex:   7,
+	}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if args[1] != "2-7" {
+		t.Errorf("expected range value \"2-7\", got %q", args[1])
+	}
+}
+
+func TestPlaylist_Range_EqualStartEnd_FormatsCorrectly(t *testing.T) {
+	// Single-item range: StartIndex == EndIndex, still valid (>= 1)
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 4,
+		EndIndex:   4,
+	}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args, got %d: %v", len(args), args)
+	}
+	if args[1] != "4-4" {
+		t.Errorf("expected \"4-4\", got %q", args[1])
+	}
+}
+
+func TestPlaylist_Range_LargeRange_FormatsCorrectly(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 1,
+		EndIndex:   100,
+	}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if args[1] != "1-100" {
+		t.Errorf("expected \"1-100\", got %q", args[1])
+	}
+}
+
+// --- SelectionRange (invalid — Validate guard) ------------------------------
+
+func TestPlaylist_Range_StartIndexZero_NoArgsAdded(t *testing.T) {
+	// Validate fails → Playlist must be a no-op
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 0,
+		EndIndex:   5,
+	}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if len(args) != 0 {
+		t.Errorf("expected no args for invalid range (start=0), got %v", args)
+	}
+}
+
+func TestPlaylist_Range_NegativeStart_NoArgsAdded(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: -3,
+		EndIndex:   10,
+	}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if len(args) != 0 {
+		t.Errorf("expected no args for invalid range (start=-3), got %v", args)
+	}
+}
+
+func TestPlaylist_Range_EndLessThanStart_NoArgsAdded(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 5,
+		EndIndex:   2,
+	}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if len(args) != 0 {
+		t.Errorf("expected no args for invalid range (end<start), got %v", args)
+	}
+}
+
+// --- SelectionItems (valid) -------------------------------------------------
+
+func TestPlaylist_Items_NonEmpty_AddsPlaylistItemsFlag(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:  domain.SelectionItems,
+		Items: "1,3,5",
+	}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if len(args) != 2 {
+		t.Fatalf("expected 2 args for items selection, got %d: %v", len(args), args)
+	}
+	if args[0] != "--playlist-items" {
+		t.Errorf("expected --playlist-items flag, got %q", args[0])
+	}
+	if args[1] != "1,3,5" {
+		t.Errorf("expected items value \"1,3,5\", got %q", args[1])
+	}
+}
+
+func TestPlaylist_Items_SingleItem_FormatsCorrectly(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:  domain.SelectionItems,
+		Items: "7",
+	}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if args[1] != "7" {
+		t.Errorf("expected \"7\", got %q", args[1])
+	}
+}
+
+// --- SelectionItems (invalid — Validate guard) ------------------------------
+
+func TestPlaylist_Items_Empty_NoArgsAdded(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:  domain.SelectionItems,
+		Items: "",
+	}
+	args := builder.NewYTDLPBuilder().Playlist(ps).Build()
+	if len(args) != 0 {
+		t.Errorf("expected no args for empty items, got %v", args)
+	}
+}
+
+// --- Return-same-builder (fluent API identity) ------------------------------
+
+func TestPlaylist_ReturnsSameBuilder(t *testing.T) {
+	b := builder.NewYTDLPBuilder()
+	ps := domain.PlaylistSelection{Type: domain.SelectionAll}
+	if b.Playlist(ps) != b {
+		t.Error("Playlist did not return the same builder")
+	}
+}
+
+func TestPlaylist_InvalidInput_ReturnsSameBuilder(t *testing.T) {
+	// Even when Validate fails the builder pointer must be returned
+	b := builder.NewYTDLPBuilder()
+	ps := domain.PlaylistSelection{Type: domain.SelectionItems, Items: ""}
+	if b.Playlist(ps) != b {
+		t.Error("Playlist did not return the same builder on invalid input")
+	}
+}
+
+// --- Chaining ---------------------------------------------------------------
+
+func TestPlaylist_ChainsWithOtherMethods(t *testing.T) {
+	ps := domain.PlaylistSelection{
+		Type:       domain.SelectionRange,
+		StartIndex: 1,
+		EndIndex:   3,
+	}
+	args := builder.NewYTDLPBuilder().
+		Video(domain.Quality720p).
+		Playlist(ps).
+		URL("https://youtube.com/playlist?list=PLxyz").
+		Build()
+
+	// -f <fmt>  --playlist-items 1-3  https://...
+	if len(args) != 5 {
+		t.Fatalf("expected 5 args in chain, got %d: %v", len(args), args)
+	}
+	// --playlist-items must appear at positions 2-3
+	if args[2] != "--playlist-items" {
+		t.Errorf("expected --playlist-items at index 2, got %q", args[2])
+	}
+	if args[3] != "1-3" {
+		t.Errorf("expected \"1-3\" at index 3, got %q", args[3])
+	}
+	if args[4] != "https://youtube.com/playlist?list=PLxyz" {
+		t.Errorf("expected URL at index 4, got %q", args[4])
+	}
+}
