@@ -2,20 +2,23 @@ package domain
 
 import (
 	"context"
+	"fmt"
 	"sync"
 )
 
 type Media struct {
-	ID         string           `json:"id"`
-	Title      string           `json:"title"`
-	TotalBytes int64            `json:"total_bytes"`
-	URL        string           `json:"url"`
-	FilePath   string           `json:"file_path"`
-	Quality    VideoQuality     `json:"quality"`
-	OnlyAudio  bool             `json:"only_audio"`
-	Status     DownloadStatus   `json:"status"`
-	Progress   DownloadProgress `json:"progress"`
-	mu         sync.Mutex
+	ID                string            `json:"id"`
+	Title             string            `json:"title"`
+	TotalBytes        int64             `json:"total_bytes"`
+	URL               string            `json:"url"`
+	FilePath          string            `json:"file_path"`
+	Quality           VideoQuality      `json:"quality"`
+	OnlyAudio         bool              `json:"only_audio"`
+	Status            DownloadStatus    `json:"status"`
+	Progress          DownloadProgress  `json:"progress"`
+	IsPlaylist        bool              `json:"is_playlist"`
+	PlaylistSelection PlaylistSelection `json:"playlist_selection,omitempty"`
+	mu                sync.Mutex
 	// Context for cancellation
 	Ctx        context.Context    `json:"-"`
 	CancelFunc context.CancelFunc `json:"-"`
@@ -23,6 +26,40 @@ type Media struct {
 	OnProgress     func(id string, progress DownloadProgress) `json:"-"`
 	OnStatusChange func(id string, status DownloadStatus)     `json:"-"`
 	OnTitleChange  func(id string, title string)              `json:"-"`
+}
+
+type PlaylistSelectionType string
+
+const (
+	SelectionAll   PlaylistSelectionType = "all"
+	SelectionRange PlaylistSelectionType = "range"
+	SelectionItems PlaylistSelectionType = "items"
+)
+
+type PlaylistSelection struct {
+	Type PlaylistSelectionType `json:"type"`
+
+	StartIndex int `json:"start_index"`
+	EndIndex   int `json:"end_index"`
+
+	Items string `json:"items"` // Comma-separated list of specific items to download
+}
+
+func (ps PlaylistSelection) Validate() error {
+	switch ps.Type {
+	case SelectionRange:
+		if ps.StartIndex < 1 || ps.EndIndex < ps.StartIndex {
+			return fmt.Errorf("invalid playlist range: start index %d, end index %d", ps.StartIndex, ps.EndIndex)
+		}
+		return nil
+	case SelectionItems:
+		if ps.Items == "" {
+			return fmt.Errorf("items selection type requires a non-empty items list")
+		}
+		return nil
+	default:
+		return nil
+	}
 }
 
 type DownloadProgress struct {

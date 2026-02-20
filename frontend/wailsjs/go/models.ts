@@ -16,6 +16,24 @@ export namespace domain {
 	        this.logs = source["logs"];
 	    }
 	}
+	export class PlaylistSelection {
+	    type: string;
+	    start_index: number;
+	    end_index: number;
+	    items: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new PlaylistSelection(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.type = source["type"];
+	        this.start_index = source["start_index"];
+	        this.end_index = source["end_index"];
+	        this.items = source["items"];
+	    }
+	}
 	export class Media {
 	    id: string;
 	    title: string;
@@ -26,6 +44,8 @@ export namespace domain {
 	    only_audio: boolean;
 	    status: number;
 	    progress: DownloadProgress;
+	    is_playlist: boolean;
+	    playlist_selection?: PlaylistSelection;
 	
 	    static createFrom(source: any = {}) {
 	        return new Media(source);
@@ -42,6 +62,8 @@ export namespace domain {
 	        this.only_audio = source["only_audio"];
 	        this.status = source["status"];
 	        this.progress = this.convertValues(source["progress"], DownloadProgress);
+	        this.is_playlist = source["is_playlist"];
+	        this.playlist_selection = this.convertValues(source["playlist_selection"], PlaylistSelection);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {
@@ -78,6 +100,7 @@ export namespace domain {
 	        this.only_audio = source["only_audio"];
 	    }
 	}
+	
 	export class Setting {
 	    parallel_downloads: number;
 	

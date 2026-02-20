@@ -2,6 +2,7 @@ package builder
 
 import (
 	"byto/internal/domain"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -110,6 +111,19 @@ func (y *YTDLPBuilder) URL(url string) *YTDLPBuilder {
 
 func (y *YTDLPBuilder) Update() *YTDLPBuilder {
 	y.args = append(y.args, "--update")
+	return y
+}
+
+func (y *YTDLPBuilder) Playlist(playlist domain.PlaylistSelection) *YTDLPBuilder {
+	if err := playlist.Validate(); err != nil {
+		return y
+	}
+	switch playlist.Type {
+	case domain.SelectionRange:
+		y.args = append(y.args, "--playlist-items", fmt.Sprintf("%d-%d", playlist.StartIndex, playlist.EndIndex))
+	case domain.SelectionItems:
+		y.args = append(y.args, "--playlist-items", playlist.Items)
+	}
 	return y
 }
 

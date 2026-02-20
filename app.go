@@ -154,7 +154,7 @@ func (a *App) SaveMediaDefaults() error {
 	return a.mediaDefaults.Save()
 }
 
-func (a *App) AddToQueue(url string, quality string, customPath string, onlyAudio bool) string {
+func (a *App) AddToQueue(url string, quality string, customPath string, onlyAudio bool, isPlaylist bool, playlistSelection domain.PlaylistSelection) string {
 	id := uuid.New().String()
 	log.Printf("Adding to queue: %s with id: %s", url, id)
 
@@ -183,13 +183,15 @@ func (a *App) AddToQueue(url string, quality string, customPath string, onlyAudi
 	}
 
 	a.queue.Add(&domain.Media{
-		ID:        id,
-		URL:       url,
-		Title:     "Pending...",
-		FilePath:  filePath,
-		Quality:   q,
-		OnlyAudio: onlyAudio,
-		Status:    domain.Pending,
+		ID:                id,
+		URL:               url,
+		Title:             "Pending...",
+		FilePath:          filePath,
+		Quality:           q,
+		OnlyAudio:         onlyAudio,
+		Status:            domain.Pending,
+		IsPlaylist:        isPlaylist,
+		PlaylistSelection: playlistSelection,
 		Progress: domain.DownloadProgress{
 			Percentage:      0,
 			DownloadedBytes: 0,
@@ -291,6 +293,9 @@ func (a *App) StartDownloads() {
 				} else {
 					b = b.Video(m.Quality)
 				}
+				if m.IsPlaylist {
+					b = b.Playlist(m.PlaylistSelection)
+				}
 
 				cmd := &command.DownloadCommand{
 					Builder: b,
@@ -386,6 +391,9 @@ func (a *App) StartSingleDownload(id string) {
 			b = b.Audio()
 		} else {
 			b = b.Video(media.Quality)
+		}
+		if media.IsPlaylist {
+			b = b.Playlist(media.PlaylistSelection)
 		}
 
 		cmd := &command.DownloadCommand{
