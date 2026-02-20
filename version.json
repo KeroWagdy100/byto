@@ -1,9 +1,9 @@
 {
-  "version": "2.0.0",
-  "release_date": "2026-02-18",
-  "changelog": "Bug Fixes:\n- Added verification and repair for ffmpeg and yt-dlp dependencies in the updater\n- Improved application options to ensure better context menu handling\n\nEnhancements:\n- Added automatic yt-dlp update checking with user notification\n- Added @types/react to enhance TypeScript support in the frontend\n\nFeatures:\n- Introduced support for audio-only downloads with related improvements",
+  "version": "2.1.0",
+  "release_date": "2026-02-20",
+  "changelog": "Features:\n- Added playlist download capabilities with multiple configuration options",
   "downloads": {
-    "windows": "https://github.com/OmarNaru1110/byto/releases/download/v2.0.0/byto-amd64-installer.exe",
+    "windows": "https://github.com/OmarNaru1110/byto/releases/download/v2.1.0/byto-amd64-installer.exe",
     "darwin": "",
     "linux": ""
   },
