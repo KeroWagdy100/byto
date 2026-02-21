@@ -2,7 +2,7 @@
 
 > A modern, lightweight, and powerful GUI for [yt-dlp](https://github.com/yt-dlp/yt-dlp), designed to simplify media downloads.
 
-![byto wallpaper](/assets/byto.png)
+![byto wallpaper](/assets/byto_ui.png)
 
 <p align="center">
   <img src="https://img.shields.io/github/downloads/OmarNaru1110/byto/total?style=for-the-badge" alt="GitHub Downloads (all releases)">
